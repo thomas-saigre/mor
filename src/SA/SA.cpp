@@ -22,47 +22,20 @@
   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 /**
-    \file nirb.cpp
+    \file SA.cpp
     \author Thomas Saigre <@thomas-saigre>
     \date 2022-06-18
  */
 
 #include <feel/options.hpp>
-#include <feel/feelalg/backend.hpp>
-#include <feel/feeldiscr/functionspace.hpp>
-#include <feel/feelfilters/gmsh.hpp>
-#include <feel/feeldiscr/mesh.hpp>
-#include <feel/feelfilters/exporter.hpp>
-#include <feel/feelvf/vf.hpp>
-
 #include <openturns/OT.hxx>
 
 
 #include <feel/feelmodels/heat/heat.hpp>
 
-//#include <feel/feelalg/solvereigen.hpp>
-#include <cstdlib>
-#include <string>
-#include <sstream>
-#include <fstream>
-#include <iostream>
-
-#include <Eigen/Core>
-#include <Eigen/LU>
-#include <Eigen/Dense>
-#include <Eigen/Eigenvalues>
-
-#include <vector>
-#include <algorithm>
-
-#include <boost/range/algorithm/max_element.hpp>
-// #include "nirb.hpp"
 
 /** use Feel namespace */
 using namespace Feel;
-using namespace Feel::vf;
-
-typedef Mesh<Simplex<2,1> >  mesh_type;
 
 /**
  * This routine returns the list of options using the
@@ -125,11 +98,11 @@ int main( int argc, char** argv )
 
     OT::Point P(2);
     P.add(2.);
-    std::cout << "OT::Point P :" << P << std::endl;
+    Feel::cout << "OT::Point P :" << P << std::endl;
 
     OT::Normal N;
     OT::Sample S(N.getSample(10));
 
-    std::cout << "OT::Sample S :" << S << std::endl;
+    Feel::cout << "OT::Sample S :" << S << std::endl;
 
 }
