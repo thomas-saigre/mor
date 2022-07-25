@@ -43,3 +43,5 @@ find_package(Feel++-Toolboxes
 
 # create application feelpp_minimal
 feelpp_add_application( test_eim SRCS test_eim.cpp)
+
+add_subdirectory(src)
