@@ -41,7 +41,4 @@ find_package(Feel++-Toolboxes
   /usr/share/feelpp/toolboxes/cmake/
   REQUIRED)
 
-# create application feelpp_minimal
-feelpp_add_application( test_eim SRCS test_eim.cpp)
-
 add_subdirectory(src)
