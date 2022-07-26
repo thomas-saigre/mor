@@ -25,6 +25,8 @@
 cmake_minimum_required(VERSION 3.0)
 project(mor)
 
+enable_testing()
+
 # find Feel++ package
 find_package(Feel++
   PATHS
@@ -42,3 +44,4 @@ find_package(Feel++-Toolboxes
   REQUIRED)
 
 add_subdirectory(src)
+add_subdirectory(test)
