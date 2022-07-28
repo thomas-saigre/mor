@@ -42,10 +42,16 @@
 #include <bsoncxx/builder/basic/array.hpp>
 #endif
 
-bool runCrbOnline( std::vector<std::shared_ptr<Feel::CRBPluginAPI>> plugin );
+#include <omp.h>
+#include "tqdm.h"
+
+typedef Feel::ParameterSpaceX::element_type element_t;
+typedef std::shared_ptr<Feel::CRBPluginAPI> plugin_ptr_t;
+typedef std::shared_ptr<Feel::ParameterSpaceX> parameter_space_ptr_t;
+
 
 bool
-runCrbOnline( std::vector<std::shared_ptr<Feel::CRBPluginAPI>> plugin )
+runCrbOnline( std::vector<plugin_ptr_t> plugin )
 {
     using namespace Feel;
 
@@ -64,10 +70,6 @@ runCrbOnline( std::vector<std::shared_ptr<Feel::CRBPluginAPI>> plugin )
         ostrmumin << mumin(d) << " ";
         ostrmumax << mumax(d) << " ";
     }
-    std::cout << "dimension of parameter space : " << muspace->dimension() << "\n";
-    std::cout << "min element in parameter space : "<< ostrmumin.str() << "\n";
-    std::cout << "max element in parameter space : "<< ostrmumax.str() << "\n";
-
 
     auto mysampling = muspace->sampling();
 
@@ -122,16 +124,11 @@ runCrbOnline( std::vector<std::shared_ptr<Feel::CRBPluginAPI>> plugin )
         std::ostringstream ostrmu;
         for ( uint16_type d=0;d<muspace->dimension();++d)
             ostrmu << mu(d) << " ";
-        // std::cout << "--------------------------------------\n";
-        // std::cout << "mu["<<k<<"] : " << ostrmu.str() << "\n";
-        //auto mu = crb->Dmu()->element();
-        //std::cout << "input mu\n" << mu << "\n";
         for( auto const& p : plugin )
         {
             auto crbResult = p->run( mu, time_crb, online_tol, rbDim, print_rb_matrix);
             auto resOuptut = boost::get<0>( crbResult );
             auto resError = boost::get<0>( boost::get<6>( crbResult ) );
-            //std::cout << "output " << resOuptut.back() << " " << resError.back() << "\n";
 
             int curRowValIndex = 0;
             for ( uint16_type d=0;d<muspace->dimension();++d)
@@ -149,7 +146,7 @@ runCrbOnline( std::vector<std::shared_ptr<Feel::CRBPluginAPI>> plugin )
 
     bool printResults = true;
     if ( printResults )
-        std::cout << tableOutputResults << std::endl;
+        Feel::cout << tableOutputResults << std::endl;
     bool saveResults = true;
 
     std::string outputResultPath = "output.csv";
@@ -171,8 +168,7 @@ runCrbOnline( std::vector<std::shared_ptr<Feel::CRBPluginAPI>> plugin )
 
 }
 
-std::shared_ptr<Feel::CRBPluginAPI>
-loadPlugin()
+plugin_ptr_t loadPlugin()
 {
     using namespace Feel;
     namespace dll=boost::dll;
@@ -198,7 +194,7 @@ loadPlugin()
         throw std::runtime_error( "no crbmodel selection, crbmodel.db.id or crbmodel.db.last should be defined" );
     }
 
-    std::cout << "crbmodelDB.dbRepository()=" << crbmodelDB.dbRepository() << std::endl;
+    Feel::cout << "crbmodelDB.dbRepository()=" << crbmodelDB.dbRepository() << std::endl;
 
     fs::path jsonPath = fs::path(crbmodelDB.dbRepository())/fmt::format("{}.crb.json",crbmodelDB.name());
     jsonPathStr = jsonPath.string();
@@ -220,12 +216,12 @@ loadPlugin()
         }
     }
 
-    std::cout << "plugin name : " << pluginname << " libname : " << pluginlibname << std::endl;
+    Feel::cout << "plugin name : " << pluginname << " libname : " << pluginlibname << std::endl;
 
     std::string pluginlibdir = Environment::expand( soption(_name="plugin.dir") );
-    std::cout << "pluginlibdir="<<pluginlibdir<<std::endl;
+    Feel::cout << "pluginlibdir="<<pluginlibdir<<std::endl;
     auto plugin = factoryCRBPlugin( pluginname, pluginlibname, pluginlibdir );
-    std::cout << "Loaded the plugin " << plugin->name() << std::endl;
+    Feel::cout << "Loaded the plugin " << plugin->name() << std::endl;
 
     bool loadFiniteElementDatabase = boption(_name="crb.load-elements-database");
     plugin->loadDB( jsonPathStr, (loadFiniteElementDatabase)? crb::load::all : crb::load::rb );
@@ -240,13 +236,92 @@ inline Feel::AboutData makeAbout()
     Feel::AboutData about( "sensitibity_analysis",
                      "SA" ,
                      "0.1",
-                     "Qensitibity analysis",
+                     "Sensitivity analysis",
                      Feel::AboutData::License_GPL,
                      "Copyright (c) 2022 Feel++ Consortium" );
 
     about.addAuthor( "Thomas Saigre", "developer", "saigre@math.unistra.fr", "" );
     return about;
+}
 
+OT::ComposedDistribution composedFromModel(parameter_space_ptr_t Dmu )
+{
+    using namespace Feel;
+    element_t mumin = Dmu->min();
+    element_t mumax = Dmu->max();
+    std::vector<std::string> names = Dmu->parameterNames();
+
+    OT::Collection<OT::Distribution> marginals(Dmu->dimension());
+
+    for ( uint16_type d=0; d<Dmu->dimension(); ++d)
+    {
+        OT::Distribution dist = OT::Uniform( mumin(d), mumax(d) );
+        dist.setDescription( {names[d]} );
+        marginals[d] = dist;
+    }
+    
+    return OT::ComposedDistribution( marginals );
+}
+
+OT::Sample output(OT::Sample input, plugin_ptr_t plugin, Eigen::VectorXd time_crb, double online_tol, int rbDim)
+{
+    size_t n = input.getSize();
+    OT::Sample output(n, 1);
+    // omp_set_num_threads(2);
+    // #pragma omp parallel private(nthreads,tid) shared(output)
+    {
+        parameter_space_ptr_t Dmu = plugin->parameterSpace();
+        std::vector<std::string> names = Dmu->parameterNames();
+        // #pragma omp parallel for
+        for (size_t i: tqdm::range(n))
+        // for (size_t i = 0; i < n; ++i)
+        {
+            OT::Point X = input[i];
+            element_t mu = Dmu->element();
+            for (size_t j = 0; j < Dmu->dimension(); ++j)
+            {
+                mu.setParameter(j, X[j]);
+            }
+            Feel::CRBResults crbResult = plugin->run( mu, time_crb, online_tol, rbDim, false );
+            output[i] = OT::Point({boost::get<0>( crbResult )[0]});
+        }
+    }
+    return output;
+}
+
+void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_size, bool computeSecondOrder=true )
+{
+    using namespace Feel;
+
+    Feel::cout << "Running sensisivity analysis with a sample of size " << sampling_size << std::endl;
+
+    bool loadFiniteElementDatabase = boption(_name="crb.load-elements-database");
+
+    Eigen::VectorXd/*typename crb_type::vectorN_type*/ time_crb;
+    double online_tol = 1e-2;               //Feel::doption(Feel::_name="crb.online-tolerance");
+    int rbDim = ioption(_name="rb-dim");
+    bool print_rb_matrix = false;           //boption(_name="crb.print-rb-matrix");
+    parameter_space_ptr_t muspace = plugin[0]->parameterSpace();
+
+    OT::ComposedDistribution composed_distribution = composedFromModel( muspace );
+
+    OT::SobolIndicesExperiment sobol(composed_distribution, sampling_size, computeSecondOrder);
+    tic();
+    OT::Sample inputDesign = sobol.generate();
+    toc("input design");
+    Feel::cout << "inputDesign generated" << std::endl;
+    tic();
+    OT::Sample outputDesign = output(inputDesign, plugin[0], time_crb, online_tol, rbDim);
+    toc("output design");
+
+    OT::SaltelliSensitivityAlgorithm sensitivity(inputDesign, outputDesign, sampling_size);
+    sensitivity.setUseAsymptoticDistribution( true );
+
+    OT::Point firstOrder = sensitivity.getFirstOrderIndices();
+    OT::Interval m = sensitivity.getFirstOrderIndicesInterval();
+
+    Feel::cout << tc::on_blue << "First order indices:" << firstOrder << tc::reset << std::endl;
+    Feel::cout << tc::on_green << "Intervals :" << m << tc::reset << std::endl;
 }
 
 int main( int argc, char** argv )
@@ -261,7 +336,7 @@ int main( int argc, char** argv )
         ( "crbmodel.db.root_directory", po::value<std::string>()->default_value( "${repository}/crbdb" ), "root directory of the CRB database " )
 
         ( "parameter", po::value<std::vector<std::string> >()->multitoken(), "database filename" )
-        ( "sampling.size", po::value<int>()->default_value( 10 ), "size of sampling" )
+        ( "sampling.size", po::value<int>()->default_value( 2000 ), "size of sampling" )
         ( "sampling.type", po::value<std::string>()->default_value( "random" ), "type of sampling" )
         ( "rb-dim", po::value<int>()->default_value( -1 ), "reduced basis dimension used (-1 use the max dim)" )
         ( "output_results.save.path", po::value<std::string>(), "output_results.save.path" )
@@ -286,16 +361,9 @@ int main( int argc, char** argv )
                      _desc_lib = crbonlinerunliboptions.add( feel_options() ),
                      _about = makeAbout() );
 
-    runCrbOnline( { loadPlugin() } );
-
-    OT::Point P(2);
-    P.add(2.);
-    Feel::cout << "OT::Point P :" << P << std::endl;
-
-    OT::Normal N;
-    OT::Sample S(N.getSample(10));
-
-    Feel::cout << "OT::Sample S :" << S << std::endl;
+    plugin_ptr_t plugin = loadPlugin();
+    // runCrbOnline( { plugin } );
+    runSensitivityAnalysis( { plugin }, ioption(_name="sampling.size"), false );
 
     return 0;
 }
