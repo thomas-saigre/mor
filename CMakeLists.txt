@@ -43,5 +43,8 @@ find_package(Feel++-Toolboxes
   /usr/share/feelpp/toolboxes/cmake/
   REQUIRED)
 
+find_package(OpenTURNS
+  REQUIRED)
+
 add_subdirectory(src)
 add_subdirectory(test)
