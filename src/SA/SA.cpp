@@ -43,7 +43,7 @@
 #endif
 
 #include <omp.h>
-#include "tqdm.h"
+#include "../tqdm/tqdm.h"
 
 typedef Feel::ParameterSpaceX::element_type element_t;
 typedef std::shared_ptr<Feel::CRBPluginAPI> plugin_ptr_t;
