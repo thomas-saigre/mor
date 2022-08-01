@@ -46,5 +46,7 @@ find_package(Feel++-Toolboxes
 find_package(OpenTURNS
   REQUIRED)
 
+message(STATUS "Found OpenTURNS: ${OpenTURNS_DIR}  (found version \"${OpenTURNS_VERSION}\")")
+
 add_subdirectory(src)
 add_subdirectory(test)
