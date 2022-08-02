@@ -250,6 +250,7 @@ OT::ComposedDistribution composedFromModel(parameter_space_ptr_t Dmu )
     element_t mumin = Dmu->min();
     element_t mumax = Dmu->max();
     std::vector<std::string> names = Dmu->parameterNames();
+    Feel::cout << tc::cyan << "names=" << names << tc::reset << std::endl;
 
     OT::Collection<OT::Distribution> marginals(Dmu->dimension());
 
@@ -304,24 +305,52 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
     parameter_space_ptr_t muspace = plugin[0]->parameterSpace();
 
     OT::ComposedDistribution composed_distribution = composedFromModel( muspace );
+    std::vector<std::string> tableRowHeader = muspace->parameterNames();
+    size_t dim = muspace->dimension();
 
-    OT::SobolIndicesExperiment sobol(composed_distribution, sampling_size, computeSecondOrder);
-    tic();
-    OT::Sample inputDesign = sobol.generate();
-    toc("input design");
-    Feel::cout << "inputDesign generated" << std::endl;
-    tic();
-    OT::Sample outputDesign = output(inputDesign, plugin[0], time_crb, online_tol, rbDim);
-    toc("output design");
 
-    OT::SaltelliSensitivityAlgorithm sensitivity(inputDesign, outputDesign, sampling_size);
-    sensitivity.setUseAsymptoticDistribution( true );
+    if ( !boption("algo.poly") )
+    {
+        OT::SobolIndicesExperiment sobol(composed_distribution, sampling_size, computeSecondOrder);
+        tic();
+        OT::Sample inputDesign = sobol.generate();
+        toc("input design");
+        Feel::cout << "inputDesign generated" << std::endl;
+        tic();
+        OT::Sample outputDesign = output(inputDesign, plugin[0], time_crb, online_tol, rbDim);
+        toc("output design");
 
-    OT::Point firstOrder = sensitivity.getFirstOrderIndices();
-    OT::Interval m = sensitivity.getFirstOrderIndicesInterval();
+        OT::SaltelliSensitivityAlgorithm sensitivity(inputDesign, outputDesign, sampling_size);
+        sensitivity.setUseAsymptoticDistribution( true );
 
-    Feel::cout << tc::on_blue << "First order indices:" << firstOrder << tc::reset << std::endl;
-    Feel::cout << tc::on_green << "Intervals :" << m << tc::reset << std::endl;
+        OT::Point firstOrder = sensitivity.getFirstOrderIndices();
+        OT::Interval intervals = sensitivity.getFirstOrderIndicesInterval();
+
+        Feel::cout << "Parameter names: " << tableRowHeader << std::endl;
+        Feel::cout << "First order indices: " << firstOrder<< std::endl;
+        Feel::cout << "Intervals : " << intervals << std::endl;
+    }
+    else
+    {
+        OT::Sample input_sample = composed_distribution.getSample(sampling_size);
+        OT::Sample output_sample = output(input_sample, plugin[0], time_crb, online_tol, rbDim);
+        OT::FunctionalChaosAlgorithm polynomialChaosAlgorithm = OT::FunctionalChaosAlgorithm(input_sample, output_sample);
+
+        polynomialChaosAlgorithm.run();
+        OT::FunctionalChaosResult polynomialChaosResult = polynomialChaosAlgorithm.getResult();
+        OT::FunctionalChaosSobolIndices sensitivityAnalysis = OT::FunctionalChaosSobolIndices(polynomialChaosResult);
+        std::vector<OT::Scalar> firstOrder(dim),
+                                totalOrder(dim);
+        for (size_t i=0; i<dim; ++i)
+        {
+            firstOrder[i] = sensitivityAnalysis.getSobolIndex(i);
+            totalOrder[i] = sensitivityAnalysis.getSobolTotalIndex(i);
+        }
+        Feel::cout << tc::green << "Sensitivity analysis using polynomial chaos" << tc::reset << std::endl;
+        Feel::cout << "Parameter names: " << tableRowHeader << std::endl;
+        Feel::cout << "first order: " << firstOrder << std::endl;
+        Feel::cout << "total order: " << totalOrder << std::endl;
+    }
 }
 
 int main( int argc, char** argv )
@@ -340,6 +369,8 @@ int main( int argc, char** argv )
         ( "sampling.type", po::value<std::string>()->default_value( "random" ), "type of sampling" )
         ( "rb-dim", po::value<int>()->default_value( -1 ), "reduced basis dimension used (-1 use the max dim)" )
         ( "output_results.save.path", po::value<std::string>(), "output_results.save.path" )
+
+        ( "algo.poly", po::value<bool>()->default_value(false), "use polynomial chaos" )
 
         ( "query", po::value<std::string>(), "query string for mongodb DB feelpp.crbdb" )
         ( "compare", po::value<std::string>(), "compare results from query in mongodb DB feelpp.crbdb" )
