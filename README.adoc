@@ -1,3 +1,3 @@
-= Model Order Reudction in C++
+= Model Order Reduction in C++
 
 Install Feel++ : https://docs.feelpp.org/user/latest/install/index.html, with mor and toolboxes dependencies.
