@@ -1,4 +1,4 @@
-feelpp_add_application( test_ot 
+feelpp_add_application( test_ot
     SRCS test_openturns.cpp
     PROJECT mor
     LINK_LIBRARIES OT

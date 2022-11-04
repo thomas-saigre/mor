@@ -29,24 +29,46 @@ enable_testing()
 
 # find Feel++ package
 find_package(Feel++
-  PATHS
-  /usr/share/feelpp/feel/cmake/modules
+  PATHS /usr/share/feelpp/feel/cmake/modules
   REQUIRED)
-
+  
 find_package(Feel++-MOR
-  PATHS
-  /usr/share/feelpp/mor/cmake/
+  PATHS /usr/share/feelpp/mor/cmake/
   REQUIRED)
-
+  
 find_package(Feel++-Toolboxes
-  PATHS
-  /usr/share/feelpp/toolboxes/cmake/
+  PATHS /usr/share/feelpp/toolboxes/cmake/
   REQUIRED)
 
+if(NOT FEELPP_FOUND)
+    message(WARNING "Feel++ was not found on your system. Make sure to install it and specify the FEELPP_DIR to reference the installation directory.")
+else()
+  message(STATUS "[feelpp] found Feel++ library in ${Feel++_DIR}")
+endif()
+
+if( NOT Feel++-Toolboxes_FOUND )
+    message(WARNING "Feel++-Toolboxes was not found on your system. Make sure to install it and specify the FEELPP_TOOLBOXES_DIR to reference the installation directory.")
+else()
+  message(STATUS "[feelpp-toolboxes] found Feel++-Toolboxes library in ${Feel++-Toolboxes_DIR}")
+endif()
+
+if ( NOT Feel++-MOR_FOUND )
+    message(WARNING "Feel++-MOR was not found on your system. Make sure to install it and specify the FEELPP_MOR_DIR to reference the installation directory.")
+else()
+  message(STATUS "[feelpp-mor] found Feel++-MOR library in ${Feel++-MOR_DIR}")
+endif()
+
+
+  
 find_package(OpenTURNS
   REQUIRED)
 
+find_package(OpenMP
+  REQUIRED)
+
+message(STATUS "Found Feel++: ${Feel++_DIR}")
 message(STATUS "Found OpenTURNS: ${OpenTURNS_DIR}  (found version \"${OpenTURNS_VERSION}\")")
+message(STATUS "Found OpenMP")
 
 add_subdirectory(src)
 add_subdirectory(test)
