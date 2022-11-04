@@ -101,7 +101,7 @@ OT::ComposedDistribution composedFromModel(parameter_space_ptr_t Dmu )
     element_t mumin = Dmu->min();
     element_t mumax = Dmu->max();
     std::vector<std::string> names = Dmu->parameterNames();
-    Feel::cout << tc::cyan << "names=" << names << tc::reset << std::endl;
+    Feel::cout << tc::cyan << "names = " << names << tc::reset << std::endl;
 
     OT::Collection<OT::Distribution> marginals(Dmu->dimension());
 
@@ -110,6 +110,7 @@ OT::ComposedDistribution composedFromModel(parameter_space_ptr_t Dmu )
         OT::Distribution dist = OT::Uniform( mumin(d), mumax(d) );
         dist.setDescription( {names[d]} );
         marginals[d] = dist;
+        Feel::cout << tc::blue << "Distribution " << d << " (" << names[d] << ") = U[" << mumin(d) << ", " << mumax(d) << "]" << tc::reset << std::endl;
     }
     
     return OT::ComposedDistribution( marginals );
