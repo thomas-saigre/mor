@@ -41,7 +41,6 @@
 #include <bsoncxx/builder/basic/array.hpp>
 #endif
 
-#include <omp.h>
 
 
 inline Feel::AboutData makeAbout()

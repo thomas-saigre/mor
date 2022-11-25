@@ -42,7 +42,7 @@
 #include <bsoncxx/builder/basic/array.hpp>
 #endif
 
-#include <omp.h>
+// #include <omp.h>
 #include "../tqdm/tqdm.h"
 
 typedef Feel::ParameterSpaceX::element_type element_t;
@@ -125,9 +125,9 @@ OT::Sample output(OT::Sample input, plugin_ptr_t plugin, Eigen::VectorXd time_cr
     {
         parameter_space_ptr_t Dmu = plugin->parameterSpace();
         std::vector<std::string> names = Dmu->parameterNames();
-        // for (size_t i: tqdm::range(n))
-        #pragma omp parallel for
-        for (size_t i = 0; i < n; ++i)
+        for (size_t i: tqdm::range(n))
+        // #pragma omp parallel for
+        // for (size_t i = 0; i < n; ++i)
         {
             OT::Point X = input[i];
             element_t mu = Dmu->element();
