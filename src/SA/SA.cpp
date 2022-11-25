@@ -177,10 +177,14 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
 
         OT::Point firstOrder = sensitivity.getFirstOrderIndices();
         OT::Interval intervals = sensitivity.getFirstOrderIndicesInterval();
+        OT::Point totalOrder = sensitivity.getTotalOrderIndices();
+        OT::Interval totalIntervals = sensitivity.getTotalOrderIndicesInterval();
 
         Feel::cout << "Parameter names: " << tableRowHeader << std::endl;
         Feel::cout << "First order indices: " << firstOrder<< std::endl;
         Feel::cout << "Intervals : " << intervals << std::endl;
+        Feel::cout << "Total order indices: " << totalOrder << std::endl;
+        Feel::cout << "Intervals : " << totalIntervals << std::endl;
     }
     else
     {
