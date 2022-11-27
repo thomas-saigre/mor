@@ -31,6 +31,10 @@
 #include <feel/feelmor/crbmodeldb.hpp>
 
 #include <iostream>
+#include <ctime>
+#include <fstream>
+#include <algorithm>
+#include <execution>
 
 #if defined(FEELPP_HAS_MONGOCXX )
 #include <bsoncxx/json.hpp>
@@ -116,19 +120,16 @@ OT::ComposedDistribution composedFromModel(parameter_space_ptr_t Dmu )
     return OT::ComposedDistribution( marginals );
 }
 
-OT::Sample output(OT::Sample input, plugin_ptr_t plugin, Eigen::VectorXd time_crb, double online_tol, int rbDim)
+OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::VectorXd &time_crb, double online_tol, int rbDim)
 {
     size_t n = input.getSize();
     OT::Sample output(n, 1);
-    // omp_set_num_threads(2);
-    // #pragma omp parallel private(nthreads,tid) shared(output)
     {
         parameter_space_ptr_t Dmu = plugin->parameterSpace();
         std::vector<std::string> names = Dmu->parameterNames();
-        for (size_t i: tqdm::range(n))
-        // #pragma omp parallel for
-        // for (size_t i = 0; i < n; ++i)
-        {
+        std::cout << "Start to compute outputs" << std::endl;
+#if 0
+        auto exec_rb = [&input, &Dmu, &time_crb, rbDim, &plugin, online_tol, &output] (int i) {
             OT::Point X = input[i];
             element_t mu = Dmu->element();
             for (size_t j = 0; j < Dmu->dimension(); ++j)
@@ -137,7 +138,24 @@ OT::Sample output(OT::Sample input, plugin_ptr_t plugin, Eigen::VectorXd time_cr
             }
             Feel::CRBResults crbResult = plugin->run( mu, time_crb, online_tol, rbDim, false );
             output[i] = OT::Point({boost::get<0>( crbResult )[0]});
+        };
+
+        std::vector<int> r(1000);
+        std::for_each( std::execution::par, r.begin(), r.end(), exec_rb );
+#else
+        for (size_t i: tqdm::range(n))          // std::for_each
+        {
+            element_t mu = Dmu->element();
+            OT::Point X = input[i];
+            for (size_t j = 0; j < Dmu->dimension(); ++j)
+            {
+                mu.setParameter(j, X[j]);
+            }
+            Feel::CRBResults crbResult = plugin->run( mu, time_crb, online_tol, rbDim, false );
+            output[i] = OT::Point({boost::get<0>( crbResult )[0]});
         }
+#endif
+        std::cout << "output computed" << std::endl;
     }
     return output;
 }

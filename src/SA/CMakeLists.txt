@@ -2,5 +2,5 @@
 
 feelpp_add_application( sensitivity_analysis SRCS SA.cpp
     PROJECT mor
-    LINK_LIBRARIES OT Feelpp::feelpp_mor # omp
+    LINK_LIBRARIES OT Feelpp::feelpp_mor tbb # omp
 )
