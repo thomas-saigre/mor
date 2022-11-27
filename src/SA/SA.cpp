@@ -160,6 +160,39 @@ OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::Ve
     return output;
 }
 
+void exportValues(const std::string filename,
+                  std::vector<OT::Scalar> firstOrder, std::vector<OT::Scalar> totalOrder)
+{
+    std::ofstream file;
+    file.open(filename);
+    file << "{\n\t\"FirstOrder\":\n\t{" << std::endl;
+    file << "\t\t\"values\": [";
+    size_t n = firstOrder.size();
+    for (size_t i = 0; i < n; ++i)
+    {
+        file << firstOrder[i];
+        if (i != n - 1)
+        {
+            file << ", ";
+        }
+    }
+    file << "]\n\t}," << std::endl;
+    file << "\t\"TotalOrder\":\n\t{" << std::endl;
+    file << "\t\t\"values\": [";
+    n = totalOrder.size();
+    for (size_t i = 0; i < n; ++i)
+    {
+        file << totalOrder[i];
+        if (i != n - 1)
+        {
+            file << ", ";
+        }
+    }
+    file << "]\n\t}" << std::endl;
+    file << "}" << std::endl;
+    file.close();
+}
+
 void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_size, bool computeSecondOrder=true )
 {
     using namespace Feel;
@@ -224,6 +257,8 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
         Feel::cout << "Parameter names: " << tableRowHeader << std::endl;
         Feel::cout << "first order: " << firstOrder << std::endl;
         Feel::cout << "total order: " << totalOrder << std::endl;
+
+        exportValues("sensitivity.json", firstOrder, totalOrder);
     }
 }
 
