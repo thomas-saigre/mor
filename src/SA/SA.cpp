@@ -230,7 +230,7 @@ int main( int argc, char** argv )
         ( "rb-dim", po::value<int>()->default_value( -1 ), "reduced basis dimension used (-1 use the max dim)" )
         ( "output_results.save.path", po::value<std::string>(), "output_results.save.path" )
 
-        ( "algo.poly", po::value<bool>()->default_value(false), "use polynomial chaos" )
+        ( "algo.poly", po::value<bool>()->default_value(true), "use polynomial chaos" )
 
         ( "query", po::value<std::string>(), "query string for mongodb DB feelpp.crbdb" )
         ( "compare", po::value<std::string>(), "compare results from query in mongodb DB feelpp.crbdb" )
@@ -253,7 +253,7 @@ int main( int argc, char** argv )
                      _desc_lib = crbonlinerunliboptions.add( feel_options() ),
                      _about = makeAbout() );
 
-
+    OT::RandomGenerator::SetSeed( ::time(NULL) );
     plugin_ptr_t plugin = loadPlugin();
     // runCrbOnline( { plugin } );
     runSensitivityAnalysis( { plugin }, ioption(_name="sampling.size"), false );
