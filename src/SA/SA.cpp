@@ -79,7 +79,7 @@ loadPlugin()
         throw std::runtime_error( "no crbmodel selection, crbmodel.db.id or crbmodel.db.last should be defined" );
     }
     auto meta = crbmodelDB.loadDBMetaData( attribute, attribute_data );
-    std::cout << "-- crbmodelDB::dbRepository()=" << crbmodelDB.dbRepository() << std::endl;
+    Feel::cout << "-- crbmodelDB::dbRepository()=" << crbmodelDB.dbRepository() << std::endl;
     
     return crbmodelDB.loadDBPlugin( meta, soption(_name="crbmodel.db.load" ) );
 }
@@ -127,7 +127,7 @@ OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::Ve
     {
         parameter_space_ptr_t Dmu = plugin->parameterSpace();
         std::vector<std::string> names = Dmu->parameterNames();
-        std::cout << "Start to compute outputs" << std::endl;
+        Feel::cout << "Start to compute outputs" << std::endl;
 #if 0
         auto exec_rb = [&input, &Dmu, &time_crb, rbDim, &plugin, online_tol, &output] (int i) {
             OT::Point X = input[i];
@@ -155,7 +155,7 @@ OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::Ve
             output[i] = OT::Point({boost::get<0>( crbResult )[0]});
         }
 #endif
-        std::cout << "output computed" << std::endl;
+        Feel::cout << "output computed" << std::endl;
     }
     return output;
 }
@@ -250,31 +250,61 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
         Feel::cout << "Total order indices: " << totalOrder << std::endl;
         Feel::cout << "Intervals : " << totalIntervals << std::endl;
     }
-    else
+    else    // if algo.poly
     {
-        OT::Sample input_sample = composed_distribution.getSample(sampling_size);
-        OT::Sample output_sample = output(input_sample, plugin[0], time_crb, online_tol, rbDim);
-        OT::FunctionalChaosAlgorithm polynomialChaosAlgorithm = OT::FunctionalChaosAlgorithm(input_sample, output_sample);
+        int nrun = ioption(_name="algo.nrun");
+        std::vector<OT::Scalar> firstOrder(dim), firstOrderMin(dim), firstOrderMax(dim),
+                                totalOrder(dim), totalOrderMin(dim), totalOrderMax(dim);
+        std::fill(firstOrder.begin(), firstOrder.end(), 0.0);
+        std::fill(totalOrder.begin(), totalOrder.end(), 0.0);
+        std::fill(firstOrderMin.begin(), firstOrderMin.end(), 1.0);
+        std::fill(totalOrderMin.begin(), totalOrderMin.end(), 1.0);
+        std::fill(firstOrderMax.begin(), firstOrderMax.end(), 0.0);
+        std::fill(totalOrderMax.begin(), totalOrderMax.end(), 0.0);
+        OT::Scalar o1, ot;
+        for (int r=0; r<nrun; ++r)
+        {
+            Feel::cout << tc::bold << tc::red << "Run " << r+1 << " over " << nrun << tc::reset << std::endl;
+            OT::Sample input_sample = composed_distribution.getSample(sampling_size);
+            OT::Sample output_sample = output(input_sample, plugin[0], time_crb, online_tol, rbDim);
+            OT::FunctionalChaosAlgorithm polynomialChaosAlgorithm = OT::FunctionalChaosAlgorithm(input_sample, output_sample);
 
-        polynomialChaosAlgorithm.run();
-        OT::FunctionalChaosResult polynomialChaosResult = polynomialChaosAlgorithm.getResult();
-        OT::FunctionalChaosSobolIndices sensitivityAnalysis = OT::FunctionalChaosSobolIndices(polynomialChaosResult);
-        std::vector<OT::Scalar> firstOrder(dim),
-                                totalOrder(dim);
+            polynomialChaosAlgorithm.run();
+            OT::FunctionalChaosResult polynomialChaosResult = polynomialChaosAlgorithm.getResult();
+            OT::FunctionalChaosSobolIndices sensitivityAnalysis = OT::FunctionalChaosSobolIndices(polynomialChaosResult);
+            for (size_t i=0; i<dim; ++i)
+            {
+                o1 = sensitivityAnalysis.getSobolIndex(i);
+                ot = sensitivityAnalysis.getSobolTotalIndex(i);
+                firstOrder[i] += o1;
+                totalOrder[i] += ot;
+                if (o1 < firstOrderMin[i]) firstOrderMin[i] = o1;
+                if (ot < totalOrderMin[i]) totalOrderMin[i] = ot;
+                if (o1 > firstOrderMax[i]) firstOrderMax[i] = o1;
+                if (ot > totalOrderMax[i]) totalOrderMax[i] = ot;
+            }
+        }
+
         for (size_t i=0; i<dim; ++i)
         {
-            firstOrder[i] = sensitivityAnalysis.getSobolIndex(i);
-            totalOrder[i] = sensitivityAnalysis.getSobolTotalIndex(i);
+            firstOrder[i] /= nrun;
+            totalOrder[i] /= nrun;
         }
-        Feel::cout << tc::green << "Sensitivity analysis using polynomial chaos" << tc::reset << std::endl;
-        Feel::cout << "Parameter names: " << tableRowHeader << std::endl;
-        Feel::cout << "first order: " << firstOrder << std::endl;
-        Feel::cout << "total order: " << totalOrder << std::endl;
+
+        Feel::cout << "\tParameter names: " << tableRowHeader << std::endl;
+        Feel::cout << "First order indices: " << firstOrder << std::endl;
+        Feel::cout << "Total order indices: " << totalOrder << std::endl;
+        Feel::cout << "FirstOrderIntervals" << std::endl;
+        for (size_t i=0; i<dim; ++i)
+            Feel::cout << "[" << firstOrderMin[i] << ", " << firstOrderMax[i] << "]" << std::endl;
+        Feel::cout << "TotalOrderIntervals" << std::endl;
+        for (size_t i=0; i<dim; ++i)
+            Feel::cout << "[" << totalOrderMin[i] << ", " << totalOrderMax[i] << "]" << std::endl;
 
         exportValues("sensitivity.json", plugin[0]->parameterSpace()->parameterNames(),
             "polynomial-chaos", sampling_size,
             firstOrder, totalOrder);
-    }
+    } // end if algo.poly
 }
 
 int main( int argc, char** argv )
@@ -299,6 +329,7 @@ int main( int argc, char** argv )
         ( "output_results.save.path", po::value<std::string>(), "output_results.save.path" )
 
         ( "algo.poly", po::value<bool>()->default_value(true), "use polynomial chaos" )
+        ( "algo.nrun", po::value<int>()->default_value(5), "number to run algorithm" )
 
         ( "query", po::value<std::string>(), "query string for mongodb DB feelpp.crbdb" )
         ( "compare", po::value<std::string>(), "compare results from query in mongodb DB feelpp.crbdb" )
@@ -326,6 +357,6 @@ int main( int argc, char** argv )
     // runCrbOnline( { plugin } );
     runSensitivityAnalysis( { plugin }, ioption(_name="sampling.size"), false );
 
-    std::cout << "Coucou" << std::endl;
+    Feel::cout << tc::green << "Done ✓" << tc::reset << std::endl;
     return 0;
 }
