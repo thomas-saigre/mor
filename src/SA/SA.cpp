@@ -140,7 +140,7 @@ OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::Ve
             output[i] = OT::Point({boost::get<0>( crbResult )[0]});
         };
 
-        std::vector<int> r(1000);
+        std::vector<int> r(n);
         std::for_each( std::execution::par, r.begin(), r.end(), exec_rb );
 #else
         for (size_t i: tqdm::range(n))          // std::for_each
@@ -161,13 +161,26 @@ OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::Ve
 }
 
 void exportValues(const std::string filename,
-                  std::vector<OT::Scalar> firstOrder, std::vector<OT::Scalar> totalOrder)
+                  const std::vector<std::string>& names, const std::string algo, size_t size,
+                  const std::vector<OT::Scalar>& firstOrder, const std::vector<OT::Scalar>& totalOrder)
 {
     std::ofstream file;
     file.open(filename);
-    file << "{\n\t\"FirstOrder\":\n\t{" << std::endl;
+    size_t n = names.size();
+    file << "{\n\t\"N\": " << n << ",\n";
+    file << "\t\"sampling-size\": " << size << ",\n";
+    file << "\t\"algo\": \"" << algo << "\",\n";
+    file << "\t\"Names\": [";
+    for (size_t i = 0; i < n; ++i)
+    {
+        file << "\"" << names[i] << "\"";
+        if (i != n - 1)
+            file << " ,";
+    }
+    file << "]," << std::endl;
+    file << "\t\"FirstOrder\":\n\t{" << std::endl;
     file << "\t\t\"values\": [";
-    size_t n = firstOrder.size();
+    assert(n == firstOrder.size());
     for (size_t i = 0; i < n; ++i)
     {
         file << firstOrder[i];
@@ -179,7 +192,7 @@ void exportValues(const std::string filename,
     file << "]\n\t}," << std::endl;
     file << "\t\"TotalOrder\":\n\t{" << std::endl;
     file << "\t\t\"values\": [";
-    n = totalOrder.size();
+    assert(n == totalOrder.size());
     for (size_t i = 0; i < n; ++i)
     {
         file << totalOrder[i];
@@ -258,7 +271,9 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
         Feel::cout << "first order: " << firstOrder << std::endl;
         Feel::cout << "total order: " << totalOrder << std::endl;
 
-        exportValues("sensitivity.json", firstOrder, totalOrder);
+        exportValues("sensitivity.json", plugin[0]->parameterSpace()->parameterNames(),
+            "polynomial-chaos", sampling_size,
+            firstOrder, totalOrder);
     }
 }
 

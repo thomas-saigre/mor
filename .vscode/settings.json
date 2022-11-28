@@ -78,5 +78,6 @@
         "valarray": "cpp",
         "variant": "cpp",
         "*.ipp": "cpp"
-    }
+    },
+    "terminal.integrated.persistentSessionReviveProcess": "onExitAndWindowClose"
 }
