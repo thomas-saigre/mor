@@ -160,9 +160,25 @@ OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::Ve
     return output;
 }
 
+/**
+ * @brief Export values computed in a json file
+ * 
+ * @param filename path to the exported file
+ * @param names names of the parameters
+ * @param algo algo used to compute sobol indices
+ * @param size size of the sample used for computation
+ * @param firstOrder first order sobol indices
+ * @param totalOrder total order sobol indices
+ * @param firstOrderMin lower bound of the first order sobol indices
+ * @param firstOrderMax upper bound of the first order sobol indices
+ * @param totalOrderMin lower bound of the total order sobol indices
+ * @param totalOrderMax upper bound of the total order sobol indices
+ */
 void exportValues(const std::string filename,
                   const std::vector<std::string>& names, const std::string algo, size_t size,
-                  const std::vector<OT::Scalar>& firstOrder, const std::vector<OT::Scalar>& totalOrder)
+                  const std::vector<OT::Scalar>& firstOrder, const std::vector<OT::Scalar>& totalOrder,
+                  const std::vector<OT::Scalar>& firstOrderMin, const std::vector<OT::Scalar>& firstOrderMax,
+                  const std::vector<OT::Scalar>& totalOrderMin, const std::vector<OT::Scalar>& totalOrderMax)
 {
     std::ofstream file;
     file.open(filename);
@@ -189,7 +205,18 @@ void exportValues(const std::string filename,
             file << ", ";
         }
     }
-    file << "]\n\t}," << std::endl;
+    file << "]," << std::endl;
+    file << "\t\t\"intervals\": [";
+    for (size_t i = 0; i < n; ++i)
+    {
+        file << "[" << firstOrderMin[i] << ", " << firstOrderMax[i] << "]";
+        if (i != n - 1)
+        {
+            file << ", ";
+        }
+    }
+    file << "]" << std::endl;
+    file << "\t}," << std::endl;
     file << "\t\"TotalOrder\":\n\t{" << std::endl;
     file << "\t\t\"values\": [";
     assert(n == totalOrder.size());
@@ -201,11 +228,30 @@ void exportValues(const std::string filename,
             file << ", ";
         }
     }
-    file << "]\n\t}" << std::endl;
+    file << "]," << std::endl;
+    file << "\t\t\"intervals\": [";
+    for (size_t i = 0; i < n; ++i)
+    {
+        file << "[" << totalOrderMin[i] << ", " << totalOrderMax[i] << "]";
+        if (i != n - 1)
+        {
+            file << ", ";
+        }
+    }
+    file << "]" << std::endl;
+    file << "\t}" << std::endl;
     file << "}" << std::endl;
     file.close();
 }
 
+
+/**
+ * @brief Compute sobol indices
+ * 
+ * @param plugin std::vector containing the plugin from load_plugin
+ * @param sampling_size size of the input sample used for computation of sobol indices
+ * @param computeSecondOrder boolean to compute second order sobol indices
+ */
 void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_size, bool computeSecondOrder=true )
 {
     using namespace Feel;
@@ -291,7 +337,7 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
             totalOrder[i] /= nrun;
         }
 
-        Feel::cout << "\tParameter names: " << tableRowHeader << std::endl;
+        Feel::cout << "Parameter names: " << tableRowHeader << std::endl;
         Feel::cout << "First order indices: " << firstOrder << std::endl;
         Feel::cout << "Total order indices: " << totalOrder << std::endl;
         Feel::cout << "FirstOrderIntervals" << std::endl;
@@ -303,7 +349,7 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
 
         exportValues("sensitivity.json", plugin[0]->parameterSpace()->parameterNames(),
             "polynomial-chaos", sampling_size,
-            firstOrder, totalOrder);
+            firstOrder, totalOrder, firstOrderMin, firstOrderMax, totalOrderMin, totalOrderMax);
     } // end if algo.poly
 }
 
