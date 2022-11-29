@@ -32,8 +32,6 @@
 
 #include <iostream>
 #include <ctime>
-#include <fstream>
-#include <algorithm>
 #include <execution>
 
 #if defined(FEELPP_HAS_MONGOCXX )
@@ -48,6 +46,7 @@
 
 // #include <omp.h>
 #include "../tqdm/tqdm.h"
+#include "results.hpp"
 
 typedef Feel::ParameterSpaceX::element_type element_t;
 typedef std::shared_ptr<Feel::CRBPluginAPI> plugin_ptr_t;
@@ -164,89 +163,6 @@ OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::Ve
     return output;
 }
 
-/**
- * @brief Export values computed in a json file
- * 
- * @param filename path to the exported file
- * @param names names of the parameters
- * @param algo algo used to compute sobol indices
- * @param size size of the sample used for computation
- * @param firstOrder first order sobol indices
- * @param totalOrder total order sobol indices
- * @param firstOrderMin lower bound of the first order sobol indices
- * @param firstOrderMax upper bound of the first order sobol indices
- * @param totalOrderMin lower bound of the total order sobol indices
- * @param totalOrderMax upper bound of the total order sobol indices
- */
-void exportValues(const std::string filename,
-                  const std::vector<std::string>& names, const std::string algo, size_t size,
-                  const std::vector<OT::Scalar>& firstOrder, const std::vector<OT::Scalar>& totalOrder,
-                  const std::vector<OT::Scalar>& firstOrderMin, const std::vector<OT::Scalar>& firstOrderMax,
-                  const std::vector<OT::Scalar>& totalOrderMin, const std::vector<OT::Scalar>& totalOrderMax)
-{
-    std::ofstream file;
-    file.open(filename);
-    size_t n = names.size();
-    file << "{\n\t\"N\": " << n << ",\n";
-    file << "\t\"sampling-size\": " << size << ",\n";
-    file << "\t\"algo\": \"" << algo << "\",\n";
-    file << "\t\"Names\": [";
-    for (size_t i = 0; i < n; ++i)
-    {
-        file << "\"" << names[i] << "\"";
-        if (i != n - 1)
-            file << " ,";
-    }
-    file << "]," << std::endl;
-    file << "\t\"FirstOrder\":\n\t{" << std::endl;
-    file << "\t\t\"values\": [";
-    assert(n == firstOrder.size());
-    for (size_t i = 0; i < n; ++i)
-    {
-        file << firstOrder[i];
-        if (i != n - 1)
-        {
-            file << ", ";
-        }
-    }
-    file << "]," << std::endl;
-    file << "\t\t\"intervals\": [";
-    for (size_t i = 0; i < n; ++i)
-    {
-        file << "[" << firstOrderMin[i] << ", " << firstOrderMax[i] << "]";
-        if (i != n - 1)
-        {
-            file << ", ";
-        }
-    }
-    file << "]" << std::endl;
-    file << "\t}," << std::endl;
-    file << "\t\"TotalOrder\":\n\t{" << std::endl;
-    file << "\t\t\"values\": [";
-    assert(n == totalOrder.size());
-    for (size_t i = 0; i < n; ++i)
-    {
-        file << totalOrder[i];
-        if (i != n - 1)
-        {
-            file << ", ";
-        }
-    }
-    file << "]," << std::endl;
-    file << "\t\t\"intervals\": [";
-    for (size_t i = 0; i < n; ++i)
-    {
-        file << "[" << totalOrderMin[i] << ", " << totalOrderMax[i] << "]";
-        if (i != n - 1)
-        {
-            file << ", ";
-        }
-    }
-    file << "]" << std::endl;
-    file << "\t}" << std::endl;
-    file << "}" << std::endl;
-    file.close();
-}
 
 
 /**
@@ -277,6 +193,7 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
 
     if ( !boption("algo.poly") )
     {
+        Results res( dim, tableRowHeader, "Saltelli", sampling_size );
         OT::SobolIndicesExperiment sobol(composed_distribution, sampling_size, computeSecondOrder);
         tic();
         OT::Sample inputDesign = sobol.generate();
@@ -293,24 +210,19 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
         OT::Interval intervals = sensitivity.getFirstOrderIndicesInterval();
         OT::Point totalOrder = sensitivity.getTotalOrderIndices();
         OT::Interval totalIntervals = sensitivity.getTotalOrderIndicesInterval();
+        res.setIndices( firstOrder, 1);
+        res.setIndices( totalOrder, 2);
+        res.setInterval( intervals, 1);
+        res.setInterval( totalIntervals, 2);
 
-        Feel::cout << "Parameter names: " << tableRowHeader << std::endl;
-        Feel::cout << "First order indices: " << firstOrder<< std::endl;
-        Feel::cout << "Intervals : " << intervals << std::endl;
-        Feel::cout << "Total order indices: " << totalOrder << std::endl;
-        Feel::cout << "Intervals : " << totalIntervals << std::endl;
+        res.print();
+        res.exportValues( "sensitivity-saltelli.json" );
     }
     else    // if algo.poly
     {
+        Results res( dim, tableRowHeader, "polynomial-chaos", sampling_size );
         int nrun = ioption(_name="algo.nrun");
-        std::vector<OT::Scalar> firstOrder(dim), firstOrderMin(dim), firstOrderMax(dim),
-                                totalOrder(dim), totalOrderMin(dim), totalOrderMax(dim);
-        std::fill(firstOrder.begin(), firstOrder.end(), 0.0);
-        std::fill(totalOrder.begin(), totalOrder.end(), 0.0);
-        std::fill(firstOrderMin.begin(), firstOrderMin.end(), 1.0);
-        std::fill(totalOrderMin.begin(), totalOrderMin.end(), 1.0);
-        std::fill(firstOrderMax.begin(), firstOrderMax.end(), 0.0);
-        std::fill(totalOrderMax.begin(), totalOrderMax.end(), 0.0);
+
         OT::Scalar o1, ot;
         for (int r=0; r<nrun; ++r)
         {
@@ -326,34 +238,15 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
             {
                 o1 = sensitivityAnalysis.getSobolIndex(i);
                 ot = sensitivityAnalysis.getSobolTotalIndex(i);
-                firstOrder[i] += o1;
-                totalOrder[i] += ot;
-                if (o1 < firstOrderMin[i]) firstOrderMin[i] = o1;
-                if (ot < totalOrderMin[i]) totalOrderMin[i] = ot;
-                if (o1 > firstOrderMax[i]) firstOrderMax[i] = o1;
-                if (ot > totalOrderMax[i]) totalOrderMax[i] = ot;
+                res.setIndice( o1, i, 1 );
+                res.setIndice( ot, i, 0 );
             }
         }
 
-        for (size_t i=0; i<dim; ++i)
-        {
-            firstOrder[i] /= nrun;
-            totalOrder[i] /= nrun;
-        }
+        res.normalize( nrun );
+        res.print();
 
-        Feel::cout << "Parameter names: " << tableRowHeader << std::endl;
-        Feel::cout << "First order indices: " << firstOrder << std::endl;
-        Feel::cout << "Total order indices: " << totalOrder << std::endl;
-        Feel::cout << "FirstOrderIntervals" << std::endl;
-        for (size_t i=0; i<dim; ++i)
-            Feel::cout << "[" << firstOrderMin[i] << ", " << firstOrderMax[i] << "]" << std::endl;
-        Feel::cout << "TotalOrderIntervals" << std::endl;
-        for (size_t i=0; i<dim; ++i)
-            Feel::cout << "[" << totalOrderMin[i] << ", " << totalOrderMax[i] << "]" << std::endl;
-
-        exportValues("sensitivity.json", plugin[0]->parameterSpace()->parameterNames(),
-            "polynomial-chaos", sampling_size,
-            firstOrder, totalOrder, firstOrderMin, firstOrderMax, totalOrderMin, totalOrderMax);
+        res.exportValues( "sensitivity.json" );
     } // end if algo.poly
 }
 
