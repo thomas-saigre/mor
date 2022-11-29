@@ -111,10 +111,14 @@ OT::ComposedDistribution composedFromModel(parameter_space_ptr_t Dmu )
 
     for ( uint16_type d=0; d<Dmu->dimension(); ++d)
     {
-        OT::Distribution dist = OT::Uniform( mumin(d), mumax(d) );
-        dist.setDescription( {names[d]} );
+        OT::Distribution dist;
+        if (names[d] == "h_amb")
+            dist = OT::LogNormal(2., 0.6137056388801094, 8.);
+        else
+            dist = OT::Uniform( mumin(d), mumax(d) );
+        dist.setDescription({names[d]});
         marginals[d] = dist;
-        Feel::cout << tc::blue << "Distribution " << d << " (" << names[d] << ") = U[" << mumin(d) << ", " << mumax(d) << "]" << tc::reset << std::endl;
+        Feel::cout << tc::blue << "Distribution " << d << " (" << names[d] << ") = " << dist << tc::reset << std::endl;
     }
     
     return OT::ComposedDistribution( marginals );
