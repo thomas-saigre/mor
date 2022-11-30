@@ -145,29 +145,29 @@ public:
         file << "\t\"sampling-size\": " << M_size << ",\n";
         file << "\t\"algo\": \"" << M_algo << "\",\n";
         file << "\t\"Names\": [";
-        for (size_t i = 0; i < M_size; ++i)
+        for (size_t i = 0; i < M_dim; ++i)
         {
             file << "\"" << M_names[i] << "\"";
-            if (i != M_size - 1)
+            if (i != M_dim - 1)
                 file << " ,";
         }
         file << "]," << std::endl;
         file << "\t\"FirstOrder\":\n\t{" << std::endl;
         file << "\t\t\"values\": [";
-        for (size_t i = 0; i < M_size; ++i)
+        for (size_t i = 0; i < M_dim; ++i)
         {
             file << M_firstOrder[i];
-            if (i != M_size - 1)
+            if (i != M_dim - 1)
             {
                 file << ", ";
             }
         }
         file << "]," << std::endl;
         file << "\t\t\"intervals\": [";
-        for (size_t i = 0; i < M_size; ++i)
+        for (size_t i = 0; i < M_dim; ++i)
         {
             file << "[" << M_firstOrderMin[i] << ", " << M_firstOrderMax[i] << "]";
-            if (i != M_size - 1)
+            if (i != M_dim - 1)
             {
                 file << ", ";
             }
@@ -176,20 +176,20 @@ public:
         file << "\t}," << std::endl;
         file << "\t\"TotalOrder\":\n\t{" << std::endl;
         file << "\t\t\"values\": [";
-        for (size_t i = 0; i < M_size; ++i)
+        for (size_t i = 0; i < M_dim; ++i)
         {
             file << M_totalOrder[i];
-            if (i != M_size - 1)
+            if (i != M_dim - 1)
             {
                 file << ", ";
             }
         }
         file << "]," << std::endl;
         file << "\t\t\"intervals\": [";
-        for (size_t i = 0; i < M_size; ++i)
+        for (size_t i = 0; i < M_dim; ++i)
         {
             file << "[" << M_totalOrderMin[i] << ", " << M_totalOrderMax[i] << "]";
-            if (i != M_size - 1)
+            if (i != M_dim - 1)
             {
                 file << ", ";
             }
