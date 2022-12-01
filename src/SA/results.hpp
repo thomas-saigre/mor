@@ -16,7 +16,7 @@ class Results
 public:
     /**
      * @brief Construct a new Results object
-     * 
+     *
      * @param dim Dimension of the problem
      * @param names vector of names of the variables
      * @param algo algorithm used
@@ -43,12 +43,19 @@ public:
     OT::Scalar getFirstOrderMax( size_t i ) const { return M_firstOrderMax[i]; };
     OT::Scalar getTotalOrderMax( size_t i ) const { return M_totalOrderMax[i]; };
 
+    std::vector<OT::Scalar> getFirstOrder() const { return M_firstOrder; };
+    std::vector<OT::Scalar> getTotalOrder() const { return M_totalOrder; };
+    std::vector<OT::Scalar> getFirstOrderMin() const { return M_firstOrderMin; };
+    std::vector<OT::Scalar> getTotalOrderMin() const { return M_totalOrderMin; };
+    std::vector<OT::Scalar> getFirstOrderMax() const { return M_firstOrderMax; };
+    std::vector<OT::Scalar> getTotalOrderMax() const { return M_totalOrderMax; };
+
     // Mutators
     void setSamplingSize( size_t size ) { M_size = size; };
 
     /**
      * @brief Set the Sobol indice
-     * 
+     *
      * @param indice value obtained with the algorithm
      * @param i index computed
      * @param order order of the indice (1 for order 1, else total order)
@@ -71,7 +78,7 @@ public:
 
     /**
      * @brief Set the Indices object
-     * 
+     *
      * @param P OT::Point containing the indices
      * @param order order of the indice (1 for order 1, else total order)
      */
@@ -115,7 +122,7 @@ public:
 
     /**
      * @brief Normalize indices by the number of execution runned
-     * 
+     *
      * @param nrun number of execution runned
      */
     void normalize( int nrun )
@@ -145,7 +152,7 @@ public:
 
     /**
      * @brief Export values computed in a json file
-     * 
+     *
      * @param filename path to the exported file
      */
     void exportValues( const std::string filename )

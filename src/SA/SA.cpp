@@ -226,6 +226,8 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
         int nrun = ioption(_name="algo.nrun");
 
         bool stop = false;
+        OT::Sample indices(nrun, dim);
+        Feel::cout << tc::green << "=====================================" << tc::reset << std::endl;
 
         while ( !stop )
         {
@@ -242,6 +244,7 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
                 OT::FunctionalChaosSobolIndices sensitivityAnalysis = OT::FunctionalChaosSobolIndices(polynomialChaosResult);
                 for (size_t i=0; i<dim; ++i)
                 {
+                    indices(r, i) = sensitivityAnalysis.getSobolIndex(i);
                     o1 = sensitivityAnalysis.getSobolIndex(i);
                     ot = sensitivityAnalysis.getSobolTotalIndex(i);
                     res.setIndice( o1, i, 1 );
@@ -249,16 +252,11 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
                 }
             }
 
-            OT::Scalar max_diff = 0;
-            for (size_t i=0; i<dim; ++i)
-            {
-                OT::Scalar diff1 = res.getFirstOrderMax(i) - res.getFirstOrderMin(i);
-                OT::Scalar difft = res.getTotalOrderMax(i) - res.getTotalOrderMin(i);
-                if ( diff1 > max_diff ) max_diff = diff1;
-                if ( difft > max_diff ) max_diff = difft;
-            }
-            std::cout << tc::green << tc::bold << "max diff = " << max_diff << tc::reset << std::endl;
-            if ( max_diff < adapt_tol )
+            OT::Scalar std_max = indices.computeStandardDeviation().normInf();
+            Feel::cout << tc::cyan << "First order : " << res.getFirstOrder() << tc::reset << std::endl;
+            Feel::cout << tc::cyan << "Total order : " << res.getTotalOrder() << tc::reset << std::endl;
+            Feel::cout << tc::green << tc::bold << "max diff = " << std_max << " (tol=" << adapt_tol << ")" << tc::reset << std::endl;
+            if ( std_max < adapt_tol )
                 stop = true;
             else
             {
@@ -297,7 +295,7 @@ int main( int argc, char** argv )
 
         ( "algo.poly", po::value<bool>()->default_value(true), "use polynomial chaos" )
         ( "algo.nrun", po::value<int>()->default_value(5), "number to run algorithm" )
-        ( "adapt.tol", po::value<double>()->default_value(0.05), "tolerance for adaptative algoritmh" )
+        ( "adapt.tol", po::value<double>()->default_value(0.01), "tolerance for adaptative algoritmh" )
 
         ( "query", po::value<std::string>(), "query string for mongodb DB feelpp.crbdb" )
         ( "compare", po::value<std::string>(), "compare results from query in mongodb DB feelpp.crbdb" )
