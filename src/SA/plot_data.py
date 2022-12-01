@@ -3,6 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import json
+import tikzplotlib
 
 def plot(path):
 
@@ -49,6 +50,7 @@ def plot(path):
     plt.title(f"Samping of size {sampling_size} ({algo})")
     plt.legend()
     plt.grid()
+    tikzplotlib.save("plot.tikz")
     plt.show()
 
 if __name__ == "__main__":

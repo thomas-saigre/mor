@@ -35,6 +35,17 @@ public:
     };
     ~Results() {};
 
+    // Accessors
+    OT::Scalar getFirstOrder( size_t i ) const { return M_firstOrder[i]; };
+    OT::Scalar getTotalOrder( size_t i ) const { return M_totalOrder[i]; };
+    OT::Scalar getFirstOrderMin( size_t i ) const { return M_firstOrderMin[i]; };
+    OT::Scalar getTotalOrderMin( size_t i ) const { return M_totalOrderMin[i]; };
+    OT::Scalar getFirstOrderMax( size_t i ) const { return M_firstOrderMax[i]; };
+    OT::Scalar getTotalOrderMax( size_t i ) const { return M_totalOrderMax[i]; };
+
+    // Mutators
+    void setSamplingSize( size_t size ) { M_size = size; };
+
     /**
      * @brief Set the Sobol indice
      * 

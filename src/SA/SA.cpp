@@ -79,7 +79,7 @@ loadPlugin()
     }
     auto meta = crbmodelDB.loadDBMetaData( attribute, attribute_data );
     Feel::cout << "-- crbmodelDB::dbRepository()=" << crbmodelDB.dbRepository() << std::endl;
-    
+
     return crbmodelDB.loadDBPlugin( meta, soption(_name="crbmodel.db.load" ) );
 }
 
@@ -111,15 +111,15 @@ OT::ComposedDistribution composedFromModel(parameter_space_ptr_t Dmu )
     for ( uint16_type d=0; d<Dmu->dimension(); ++d)
     {
         OT::Distribution dist;
-        if (names[d] == "h_amb")
-            dist = OT::LogNormal(2., 0.6137056388801094, 8.);
-        else
+        // if (names[d] == "h_amb")
+        //     dist = OT::LogNormal(2., 0.6137056388801094, 8.);
+        // else
             dist = OT::Uniform( mumin(d), mumax(d) );
         dist.setDescription({names[d]});
         marginals[d] = dist;
         Feel::cout << tc::blue << "Distribution " << d << " (" << names[d] << ") = " << dist << tc::reset << std::endl;
     }
-    
+
     return OT::ComposedDistribution( marginals );
 }
 
@@ -167,7 +167,7 @@ OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::Ve
 
 /**
  * @brief Compute sobol indices
- * 
+ *
  * @param plugin std::vector containing the plugin from load_plugin
  * @param sampling_size size of the input sample used for computation of sobol indices
  * @param computeSecondOrder boolean to compute second order sobol indices
@@ -189,6 +189,8 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
     OT::ComposedDistribution composed_distribution = composedFromModel( muspace );
     std::vector<std::string> tableRowHeader = muspace->parameterNames();
     size_t dim = muspace->dimension();
+
+    double adapt_tol = doption(_name="adapt.tol");
 
 
     if ( !boption("algo.poly") )
@@ -223,23 +225,45 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
         Results res( dim, tableRowHeader, "polynomial-chaos", sampling_size );
         int nrun = ioption(_name="algo.nrun");
 
-        OT::Scalar o1, ot;
-        for (int r=0; r<nrun; ++r)
-        {
-            Feel::cout << tc::bold << tc::red << "Run " << r+1 << " over " << nrun << tc::reset << std::endl;
-            OT::Sample input_sample = composed_distribution.getSample(sampling_size);
-            OT::Sample output_sample = output(input_sample, plugin[0], time_crb, online_tol, rbDim);
-            OT::FunctionalChaosAlgorithm polynomialChaosAlgorithm = OT::FunctionalChaosAlgorithm(input_sample, output_sample);
+        bool stop = false;
 
-            polynomialChaosAlgorithm.run();
-            OT::FunctionalChaosResult polynomialChaosResult = polynomialChaosAlgorithm.getResult();
-            OT::FunctionalChaosSobolIndices sensitivityAnalysis = OT::FunctionalChaosSobolIndices(polynomialChaosResult);
+        while ( !stop )
+        {
+            OT::Scalar o1, ot;
+            for (int r=0; r<nrun; ++r)
+            {
+                Feel::cout << tc::bold << tc::red << "Run " << r+1 << " over " << nrun << " with sample of size " << sampling_size << tc::reset << std::endl;
+                OT::Sample input_sample = composed_distribution.getSample(sampling_size);
+                OT::Sample output_sample = output(input_sample, plugin[0], time_crb, online_tol, rbDim);
+                OT::FunctionalChaosAlgorithm polynomialChaosAlgorithm = OT::FunctionalChaosAlgorithm(input_sample, output_sample);
+
+                polynomialChaosAlgorithm.run();
+                OT::FunctionalChaosResult polynomialChaosResult = polynomialChaosAlgorithm.getResult();
+                OT::FunctionalChaosSobolIndices sensitivityAnalysis = OT::FunctionalChaosSobolIndices(polynomialChaosResult);
+                for (size_t i=0; i<dim; ++i)
+                {
+                    o1 = sensitivityAnalysis.getSobolIndex(i);
+                    ot = sensitivityAnalysis.getSobolTotalIndex(i);
+                    res.setIndice( o1, i, 1 );
+                    res.setIndice( ot, i, 0 );
+                }
+            }
+
+            OT::Scalar max_diff = 0;
             for (size_t i=0; i<dim; ++i)
             {
-                o1 = sensitivityAnalysis.getSobolIndex(i);
-                ot = sensitivityAnalysis.getSobolTotalIndex(i);
-                res.setIndice( o1, i, 1 );
-                res.setIndice( ot, i, 0 );
+                OT::Scalar diff1 = res.getFirstOrderMax(i) - res.getFirstOrderMin(i);
+                OT::Scalar difft = res.getTotalOrderMax(i) - res.getTotalOrderMin(i);
+                if ( diff1 > max_diff ) max_diff = diff1;
+                if ( difft > max_diff ) max_diff = difft;
+            }
+            std::cout << tc::green << tc::bold << "max diff = " << max_diff << tc::reset << std::endl;
+            if ( max_diff < adapt_tol )
+                stop = true;
+            else
+            {
+                sampling_size *= 2;
+                res.setSamplingSize( sampling_size );
             }
         }
 
@@ -273,6 +297,7 @@ int main( int argc, char** argv )
 
         ( "algo.poly", po::value<bool>()->default_value(true), "use polynomial chaos" )
         ( "algo.nrun", po::value<int>()->default_value(5), "number to run algorithm" )
+        ( "adapt.tol", po::value<double>()->default_value(0.05), "tolerance for adaptative algoritmh" )
 
         ( "query", po::value<std::string>(), "query string for mongodb DB feelpp.crbdb" )
         ( "compare", po::value<std::string>(), "compare results from query in mongodb DB feelpp.crbdb" )
