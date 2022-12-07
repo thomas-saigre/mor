@@ -37,7 +37,7 @@ def plot(path):
 
         plt.errorbar(xs, firstOrderIndices, yerr=[firstOrderIndices - firstOrderIntervals[:,0], firstOrderIntervals[:,1] - firstOrderIndices], fmt='o', label="First order")
         plt.errorbar(xs+0.2, totalOrderIndices, yerr=[totalOrderIndices - totalOrderIntervals[:,0], totalOrderIntervals[:,1] - totalOrderIndices], fmt='o', label="Total order")
-    
+
     else:
         plt.scatter(xs, firstOrderIndices, label="First order")
         plt.scatter(xs+0.2, totalOrderIndices, label="Total order")

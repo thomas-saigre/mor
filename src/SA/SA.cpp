@@ -231,6 +231,7 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
 
         while ( !stop )
         {
+            res.reset();
             OT::Scalar o1, ot;
             for (int r=0; r<nrun; ++r)
             {
@@ -251,13 +252,15 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
                     res.setIndice( ot, i, 0 );
                 }
             }
+            std::cout << "indices = \n" << indices << std::endl;
 
             OT::Scalar std_max = indices.computeStandardDeviation().normInf();
-            Feel::cout << tc::cyan << "First order : " << res.getFirstOrder() << tc::reset << std::endl;
-            Feel::cout << tc::cyan << "Total order : " << res.getTotalOrder() << tc::reset << std::endl;
             Feel::cout << tc::green << tc::bold << "max diff = " << std_max << " (tol=" << adapt_tol << ")" << tc::reset << std::endl;
             if ( std_max < adapt_tol )
+            {
+                res.normalize(nrun);
                 stop = true;
+            }
             else
             {
                 sampling_size *= 2;
@@ -265,7 +268,6 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
             }
         }
 
-        res.normalize( nrun );
         res.print();
 
         res.exportValues( "sensitivity.json" );

@@ -77,6 +77,20 @@ public:
     }
 
     /**
+     * @brief Reset indices and intervals
+     * 
+     */
+    void reset()
+    {
+        std::fill(M_firstOrder.begin(), M_firstOrder.end(), 0.0);
+        std::fill(M_totalOrder.begin(), M_totalOrder.end(), 0.0);
+        std::fill(M_firstOrderMin.begin(), M_firstOrderMin.end(), 1.0);
+        std::fill(M_totalOrderMin.begin(), M_totalOrderMin.end(), 1.0);
+        std::fill(M_firstOrderMax.begin(), M_firstOrderMax.end(), 0.0);
+        std::fill(M_totalOrderMax.begin(), M_totalOrderMax.end(), 0.0);
+    }
+
+    /**
      * @brief Set the Indices object
      *
      * @param P OT::Point containing the indices
@@ -144,10 +158,10 @@ public:
         Feel::cout << "Total order indices: " << M_totalOrder << std::endl;
         Feel::cout << "FirstOrderIntervals" << std::endl;
         for (size_t i=0; i < M_dim; ++i)
-            Feel::cout << "[" << M_firstOrderMin[i] << ", " << M_firstOrderMax[i] << "]" << std::endl;
+            Feel::cout << "\t[" << M_firstOrderMin[i] << ", " << M_firstOrderMax[i] << "]" << std::endl;
         Feel::cout << "TotalOrderIntervals" << std::endl;
         for (size_t i=0; i < M_dim; ++i)
-            Feel::cout << "[" << M_totalOrderMin[i] << ", " << M_totalOrderMax[i] << "]" << std::endl;
+            Feel::cout << "\t[" << M_totalOrderMin[i] << ", " << M_totalOrderMax[i] << "]" << std::endl;
     }
 
     /**

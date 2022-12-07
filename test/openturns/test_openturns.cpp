@@ -15,7 +15,7 @@ OT::ComposedDistribution my_composed_distribution()
     OT::Distribution Kw = OT::Uniform(9855.0, 12045.0);
 
     std::initializer_list<OT::Distribution> distributions = {rw, r, Tu, Hu, Tl, Hl, L, Kw};
-    
+
     return OT::ComposedDistribution( distributions );
 }
 
@@ -53,7 +53,7 @@ int main(int, char *[])
     OT::SobolIndicesExperiment sobol(C, size, computeSecondOrder);
     OT::Sample inputDesign = sobol.generate();
     // std::cout << "inputDesign :\n" << inputDesign << std::endl;
-    
+
     OT::Sample outputDesign = output(inputDesign);
     // std::cout << "outputDesign :\n" << outputDesign << std::endl;
 
