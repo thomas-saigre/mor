@@ -87,7 +87,7 @@ loadPlugin()
 
 inline Feel::AboutData makeAbout()
 {
-    Feel::AboutData about( "sensitibity_analysis",
+    Feel::AboutData about( "sensitivity_analysis",
                      "SA" ,
                      "0.1",
                      "Sensitivity analysis",
