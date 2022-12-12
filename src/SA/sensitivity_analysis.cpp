@@ -248,6 +248,11 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
                     indices(r, i) = sensitivityAnalysis.getSobolIndex(i);
                     o1 = sensitivityAnalysis.getSobolIndex(i);
                     ot = sensitivityAnalysis.getSobolTotalIndex(i);
+                    if ( o1 > ot )
+                    {
+                        Feel::cout << tc::red << "Warning: o1 > ot" << tc::reset << std::endl;
+                        throw std::logic_error("Issue in computing sobol indices");
+                    }
                     res.setIndice( o1, i, 1 );
                     res.setIndice( ot, i, 0 );
                 }
