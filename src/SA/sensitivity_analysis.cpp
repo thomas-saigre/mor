@@ -111,9 +111,20 @@ OT::ComposedDistribution composedFromModel(parameter_space_ptr_t Dmu )
     for ( uint16_type d=0; d<Dmu->dimension(); ++d)
     {
         OT::Distribution dist;
-        // if (names[d] == "h_amb")
-        //     dist = OT::LogNormal(2., 0.6137056388801094, 8.);
-        // else
+        if (names[d] == "h_amb")
+        {
+            // dist = OT::LogNormal(2., 0.6137056388801094, 8.);
+            double s = 0.4; double mu = log(10) - 0.5*s*s;
+            dist = OT::TruncatedDistribution(OT::LogNormal(2.222585092994046, s, 0), OT::Interval(8, 20));
+        }
+        else if (names[d] == "E")
+            dist = OT::LogUniform( log(mumin(d)), log(mumax(d)) );
+        else if (names[d] == "h_bl")
+        {
+            double s = 0.15; double mu = log(65) - 0.5*s*s;
+            dist = OT::TruncatedDistribution(OT::LogNormal(mu, s, 0), OT::Interval(50, 110));
+        }
+        else
             dist = OT::Uniform( mumin(d), mumax(d) );
         dist.setDescription({names[d]});
         marginals[d] = dist;
