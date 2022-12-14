@@ -7,15 +7,18 @@
 
 using namespace std;
 
-OT::Sample getSample(size_t size)
+OT::Sample getSample(size_t size, size_t dim)
 {
-    OT::Distribution distribution = OT::Normal();
+    OT::Collection<OT::Distribution> marginals( dim );
+    for (size_t i=0; i<dim; ++i)
+        marginals[i] = OT::Uniform(0.0, 1.0);
+    OT::Distribution distribution = OT::ComposedDistribution( marginals );
     OT::Sample sample = distribution.getSample(size);
     return sample;
 }
 
 
-int gather()
+int gather(size_t sample_size, size_t dim)
 {
     MPI_Init(nullptr, nullptr);
     int  world_size , world_rank;
@@ -26,24 +29,33 @@ int gather()
     int master_rank = 0;
     if (world_rank == master_rank) cout << "Gather vectors" << endl;
 
-    OT::Sample valsSend = getSample(5);
+    OT::Sample valsSend = getSample(sample_size, dim);
     std::cout << world_rank << " "  << valsSend << std::endl;
 
     OT::Sample valsRec_sample;
     double *valsRec;
     if (world_rank == master_rank)
     {
-        valsRec = new double[world_size * 5];
-        valsRec_sample = OT::Sample(world_size * 5, 1);
+        valsRec = new double[world_size * sample_size * dim];
+        valsRec_sample = OT::Sample(world_size * sample_size, dim);
     }
     
-    MPI_Gather(valsSend.data(), 5, MPI_DOUBLE, valsRec, 5, MPI_DOUBLE, master_rank, MPI_COMM_WORLD);
+    MPI_Gather(valsSend.data(), sample_size * dim, MPI_DOUBLE, valsRec, sample_size * dim, MPI_DOUBLE, master_rank, MPI_COMM_WORLD);
 
     if (world_rank == master_rank){
-        size_t size = world_size * 5;
+        std::cout << "Gather: " << std::endl;
+        for (size_t i=0; i<world_size * sample_size * dim; ++i)
+        {
+            cout << valsRec[i] << " ";
+        }
+        cout << endl;
+        size_t size = world_size * sample_size;
         for (size_t i=0; i<size; ++i)
         {
-            valsRec_sample[i] = OT::Point( {valsRec[i]} );
+            for (size_t j=0; j<dim; ++j)
+            {
+                valsRec_sample[i][j] = valsRec[i * dim + j];
+            }
         }
         std::cout << valsRec_sample << std::endl;
         delete valsRec;
@@ -54,7 +66,9 @@ int gather()
 }
 
 
-int main()
+int main(int argc, char *argv[])
 {
-    gather();
+    size_t sample_size = (argc > 1) ? atoi(argv[1]) : 5;
+    size_t dim = (argc > 2) ? atoi(argv[2]) : 2;
+    gather(sample_size, dim);
 }
