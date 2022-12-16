@@ -208,25 +208,11 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
     std::vector<std::string> tableRowHeader = muspace->parameterNames();
     size_t dim = muspace->dimension();
 
-    size_t input_sample_gather_size = sampling_size * dim * world_size,
-           input_sample_local_size = sampling_size * dim;
-    size_t output_sample_gather_size = sampling_size * world_size,
-           output_sample_local_size = sampling_size;
 
     double adapt_tol = doption(_name="adapt.tol");
 
     double *input_sample_gather, *output_sample_gather;
     OT::Sample input_sample, output_sample;
-
-    if ( Feel::Environment::worldComm().isMasterRank() )
-    {
-        input_sample_gather = new double[input_sample_gather_size];
-        output_sample_gather = new double[output_sample_gather_size];
-        input_sample = OT::Sample( output_sample_gather_size, dim );
-        input_sample.setDescription( composed_distribution.getDescription() );
-        output_sample = OT::Sample( output_sample_gather_size, 1 ); 
-        output_sample.setDescription( {soption(_name="output.name")} );   
-    }
 
 
     if ( !boption("algo.poly") )
@@ -269,6 +255,22 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
         {
             res.reset();
             OT::Scalar o1, ot;
+
+            size_t input_sample_gather_size = sampling_size * dim * world_size,
+                   input_sample_local_size = sampling_size * dim;
+            size_t output_sample_gather_size = sampling_size * world_size,
+                   output_sample_local_size = sampling_size;
+
+            if ( Feel::Environment::worldComm().isMasterRank() )
+            {
+                input_sample_gather = new double[input_sample_gather_size];
+                output_sample_gather = new double[output_sample_gather_size];
+                input_sample = OT::Sample( output_sample_gather_size, dim );
+                input_sample.setDescription( composed_distribution.getDescription() );
+                output_sample = OT::Sample( output_sample_gather_size, 1 ); 
+                output_sample.setDescription( {soption(_name="output.name")} );   
+            }
+
             for (int r=0; r<nrun; ++r)
             {
                 Feel::cout << tc::bold << tc::red << "Run " << r+1 << " over " << nrun << " with sample of size " << output_sample_gather_size << "(split over " << world_size << " processors)" << tc::reset << std::endl;
@@ -341,10 +343,11 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
             }
         }
 
-        if ( Feel::Environment::worldComm().isMasterRank() )
-        {
-            delete [] input_sample_gather;
-            delete [] output_sample_gather;
+            if ( Feel::Environment::worldComm().isMasterRank() )
+            {
+                delete [] input_sample_gather;
+                delete [] output_sample_gather;
+            }
         }
 
         res.print();
