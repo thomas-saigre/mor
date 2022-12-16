@@ -52,6 +52,7 @@ typedef Feel::ParameterSpaceX::element_type element_t;
 typedef std::shared_ptr<Feel::CRBPluginAPI> plugin_ptr_t;
 typedef std::shared_ptr<Feel::ParameterSpaceX> parameter_space_ptr_t;
 
+// #define VERBOSE
 
 std::shared_ptr<Feel::CRBPluginAPI>
 loadPlugin()
@@ -89,7 +90,7 @@ inline Feel::AboutData makeAbout()
 {
     Feel::AboutData about( "sensitivity_analysis",
                      "SA" ,
-                     "0.1",
+                     "0.2",
                      "Sensitivity analysis",
                      Feel::AboutData::License_GPL,
                      "Copyright (c) 2022 Feel++ Consortium" );
@@ -158,7 +159,8 @@ OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::Ve
         std::vector<int> r(n);
         std::for_each( std::execution::par, r.begin(), r.end(), exec_rb );
 #else
-        for (size_t i: tqdm::range(n))          // std::for_each
+        // for (size_t i: tqdm::range(n))          // std::for_each
+        for (size_t i=0; i<n; ++i)
         {
             element_t mu = Dmu->element();
             OT::Point X = input[i];
@@ -216,6 +218,16 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
     double *input_sample_gather, *output_sample_gather;
     OT::Sample input_sample, output_sample;
 
+    if ( Feel::Environment::worldComm().isMasterRank() )
+    {
+        input_sample_gather = new double[input_sample_gather_size];
+        output_sample_gather = new double[output_sample_gather_size];
+        input_sample = OT::Sample( output_sample_gather_size, dim );
+        input_sample.setDescription( composed_distribution.getDescription() );
+        output_sample = OT::Sample( output_sample_gather_size, 1 ); 
+        output_sample.setDescription( {soption(_name="output.name")} );   
+    }
+
 
     if ( !boption("algo.poly") )
     {
@@ -259,22 +271,14 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
             OT::Scalar o1, ot;
             for (int r=0; r<nrun; ++r)
             {
-                Feel::cout << tc::bold << tc::red << "Run " << r+1 << " over " << nrun << " with sample of size " << sampling_size << tc::reset << std::endl;
+                Feel::cout << tc::bold << tc::red << "Run " << r+1 << " over " << nrun << " with sample of size " << output_sample_gather_size << "(split over " << world_size << " processors)" << tc::reset << std::endl;
                 OT::Sample input_sample_proc = composed_distribution.getSample(sampling_size);
                 OT::Sample output_sample_proc = output(input_sample_proc, plugin[0], time_crb, online_tol, rbDim);
-
+#ifdef VERBOSE
                 std::cout << "On proc " << world_rank << " : input_sample_proc = \n" << input_sample_proc << std::endl;
                 std::cout << "On proc " << world_rank << " : output_sample_proc = \n" << output_sample_proc << std::endl;
+#endif
 
-                if ( Feel::Environment::worldComm().isMasterRank() )
-                {
-                    input_sample_gather = new double[input_sample_gather_size];
-                    output_sample_gather = new double[output_sample_gather_size];
-                    input_sample = OT::Sample( output_sample_gather_size, dim );
-                    input_sample.setDescription( input_sample_proc.getDescription() );
-                    output_sample = OT::Sample( output_sample_gather_size, 1 ); 
-                    output_sample.setDescription( {soption(_name="output.name")} );                   
-                }
 
                 // Gather input_sample : the parameters used for the computation of the output
                 MPI_Gather( input_sample_proc.data(), input_sample_local_size, MPI_DOUBLE,
@@ -295,10 +299,11 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
                             input_sample[i][j] = input_sample_gather[i*dim + j];
                         output_sample[i][0] = output_sample_gather[i];
                     }
-
+#ifdef VERBOSE
                     Feel::cout << "After gathering" << std::endl;
                     Feel::cout << input_sample << std::endl;
                     Feel::cout << output_sample << std::endl;
+#endif
 
                     OT::FunctionalChaosAlgorithm polynomialChaosAlgorithm = OT::FunctionalChaosAlgorithm(input_sample, output_sample);
                     polynomialChaosAlgorithm.run();
@@ -334,7 +339,12 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
                 sampling_size *= 2;
                 res.setSamplingSize( sampling_size );
             }
-            stop = true;
+        }
+
+        if ( Feel::Environment::worldComm().isMasterRank() )
+        {
+            delete [] input_sample_gather;
+            delete [] output_sample_gather;
         }
 
         res.print();
