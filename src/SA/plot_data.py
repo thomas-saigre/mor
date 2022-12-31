@@ -10,8 +10,6 @@ def plot(path):
     with open(path, 'r') as f:
         data = json.load(f)
 
-    print(type(data))
-
     N = data["N"]
     algo = data["algo"]
     sampling_size = data["sampling-size"]

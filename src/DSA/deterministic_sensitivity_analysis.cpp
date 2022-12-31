@@ -197,7 +197,6 @@ int runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_si
     using namespace Feel;
 
     bool loadFiniteElementDatabase = boption(_name="crb.load-elements-database");
-    std::cout << __LINE__ << std::endl;
 
     Eigen::VectorXd/*typename crb_type::vectorN_type*/ time_crb;
     double online_tol = 1e-2;               //Feel::doption(Feel::_name="crb.online-tolerance");
@@ -207,7 +206,6 @@ int runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_si
 
     std::vector<std::string> tableRowHeader = muspace->parameterNames();
     size_t dim = muspace->dimension();
-    std::cout << __LINE__ << std::endl;
 
     std::string param = soption( _name="parameter.name" );
     std::map<std::string, double> param_map = {
@@ -222,14 +220,12 @@ int runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_si
     std::vector<double> results(sampling_size);
     element_t mu = muspace->element();
     mu.setParameters(param_map);
-    std::cout << __LINE__ << std::endl;
 
     element_t mu_min = muspace->min();
     element_t mu_max = muspace->max();
 
     std::cout << "mu_min = " << mu_min << std::endl;
     std::cout << "mu_max = " << mu_max << std::endl;
-    std::cout << __LINE__ << std::endl;
 
     double min_from_option = doption( _name="parameter.min" ),
            max_from_option = doption( _name="parameter.max" );
@@ -241,13 +237,11 @@ int runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_si
         Feel::cout << tc::red << "Error: min value is greater than max value" << std::endl;
         return 1;
     }
-    std::cout << __LINE__ << std::endl;
 
     Feel::cout << tc::cyan << "Running deterministic analysis for parameter " << param
         << " in [" << min_value << ", " << max_value << "] of size " << sampling_size << tc::reset << std::endl;
 
     std::vector<double> params_vect = linspace(min_value, max_value, sampling_size);
-    std::cout << __LINE__ << std::endl;
 
     for (size_t i: tqdm::range(sampling_size))
     // for (size_t i = 0; i < sampling_size; ++i)
@@ -256,7 +250,6 @@ int runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_si
         Feel::CRBResults crbResult = plugin[0]->run( mu, time_crb, online_tol, rbDim, print_rb_matrix );
         results[i] = boost::get<0>( crbResult )[0];
     }
-    std::cout << __LINE__ << std::endl;
 
     print_results_to_file(params_vect, results, "deterministic_analysis_" + param + ".csv");
 
