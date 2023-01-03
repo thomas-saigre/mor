@@ -246,7 +246,7 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
     }
     else    // if algo.poly
     {
-        Results res( dim, tableRowHeader, "polynomial-chaos", sampling_size );
+        Results res( dim, tableRowHeader, "polynomial-chaos", sampling_size * world_size );
         int nrun = ioption(_name="algo.nrun");
 
         bool stop = false;
@@ -275,7 +275,7 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
 
             for (int r=0; r<nrun; ++r)
             {
-                Feel::cout << tc::bold << tc::red << "Run " << r+1 << " over " << nrun << " with sample of size " << output_sample_gather_size << "(split over " << world_size << " processors)" << tc::reset << std::endl;
+                Feel::cout << tc::bold << tc::red << "Run " << r+1 << " over " << nrun << " with sample of size " << output_sample_gather_size << " (split over " << world_size << " processors)" << tc::reset << std::endl;
                 OT::Sample input_sample_proc = composed_distribution.getSample(sampling_size);
                 OT::Sample output_sample_proc = output(input_sample_proc, plugin[0], time_crb, online_tol, rbDim);
 #ifdef VERBOSE
@@ -320,7 +320,7 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
                         ot = sensitivityAnalysis.getSobolTotalIndex(i);
                         if ( o1 > ot )
                         {
-                            Feel::cout << tc::red << "Warning: o1 > ot" << tc::reset << std::endl;
+                            Feel::cout << tc::bold << tc::red << "Warning: o1 > ot" << tc::reset << std::endl;
                             throw std::logic_error("Issue in computing sobol indices");
                         }
                         res.setIndice( o1, i, 1 );
@@ -334,24 +334,21 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
             OT::Scalar std_max = indices.computeStandardDeviation().normInf();
             Feel::cout << tc::green << tc::bold << "max diff = " << std_max << " (tol=" << adapt_tol << ")" << tc::reset << std::endl;
             if ( std_max < adapt_tol )
-            {
-                res.normalize(nrun);
                 stop = true;
-            }
             else
             {
                 sampling_size *= 2;
                 res.setSamplingSize( sampling_size );
             }
-        }
 
             if ( Feel::Environment::worldComm().isMasterRank() )
             {
                 delete [] input_sample_gather;
                 delete [] output_sample_gather;
             }
+            stop = true;
         }
-
+        res.normalize(nrun);
         res.print();
 
         res.exportValues( "sensitivity.json" );
