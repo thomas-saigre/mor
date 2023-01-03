@@ -4,6 +4,11 @@ feelpp_add_application( test_ot
     LINK_LIBRARIES OT
 )
 
+feelpp_add_application( polynomial_chaos
+    SRCS polynomial_chaos.cpp
+    PROJECT mor
+    LINK_LIBRARIES OT
+)
 
 set(TESTFILES test.sh sobol.py)
 install(FILES ${TESTFILES} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
