@@ -26,7 +26,16 @@
 
 #include <openturns/OT.hxx>
 
-
+/**
+ * @brief Create a sparse least squares chaos with least squares
+ *
+ * @param X Input training design of experiments
+ * @param Y Output training design of experiments
+ * @param basis mulMivariate orthogonal polynomial basis
+ * @param total_degree Maximum total degree of the polynomials
+ * @param distribution Distribution of X
+ * @return OT::FunctionalChaosResult Polynomial chaos result
+ */
 OT::FunctionalChaosResult computeSparseLeastSquaresChaos( OT::Sample X, OT::Sample Y,
     OT::OrthogonalProductPolynomialFactory basis, OT::UnsignedInteger total_degree, OT::Distribution distribution)
 {
@@ -43,14 +52,27 @@ OT::FunctionalChaosResult computeSparseLeastSquaresChaos( OT::Sample X, OT::Samp
     return result;
 }
 
-void checkMetaModel(OT::UnsignedInteger n_valid, OT::Sample X_test, OT::Sample Y_test, OT::Function metamodel)
+/**
+ * @brief Ckeck the metamodel with a validation sample
+ *
+ * @param X_test Input training design of experiments
+ * @param Y_test Output training design of experiments
+ * @param metamodel Metamodel to check
+ */
+void checkMetaModel(OT::Sample X_test, OT::Sample Y_test, OT::Function metamodel)
 {
     OT::MetaModelValidation validation(X_test, Y_test, metamodel);
     OT::Scalar Q2 = validation.computePredictivityFactor()[0];
     Feel::cout << Feel::tc::green << "Check of the metamodel : Q2 = " << Q2 << Feel::tc::reset << std::endl;
 }
 
-
+/**
+ * @brief Bootstrap two samples
+ *
+ * @param X First sample to bootstrap
+ * @param Y Second sample to bootstrap
+ * @return bootstraped samples
+ */
 auto multiBootstrap(OT::Sample X, OT::Sample Y)
 {
     OT::UnsignedInteger n = X.getSize();
@@ -58,7 +80,16 @@ auto multiBootstrap(OT::Sample X, OT::Sample Y)
     return std::make_tuple(X.select(selection), Y.select(selection));
 }
 
-
+/**
+ * @brief Compute the first and total order Sobol's indices from a polynomial chaos
+ *
+ * @param X Input design
+ * @param Y Output design
+ * @param basis Tensorized polynomial basis
+ * @param total_degree Maximum total degree of the polynomials
+ * @param distribution Distribution of X
+ * @return tuple of first and total order Sobol's indices
+ */
 auto computeChaosSensitivity( const OT::Sample X, const OT::Sample Y,
     OT::OrthogonalProductPolynomialFactory basis, OT::UnsignedInteger total_degree, OT::Distribution distribution)
 {
@@ -78,6 +109,18 @@ auto computeChaosSensitivity( const OT::Sample X, const OT::Sample Y,
     return std::make_tuple(first_order, total_order);
 }
 
+/**
+ * @brief Compute a bootstrap sample of Sobol's indices from a polynomial chaos
+ *
+ * @param X Input design
+ * @param Y Output design
+ * @param basis Tensorized polynomial basis
+ * @param total_degree Maximum total degree of the polynomials
+ * @param distribution Distribution of X
+ * @param bootstrap_size Size of the bootstrap sample
+ * @param eps Tolerance for the bootstrap, default to 1e-9
+ * @return auto 
+ */
 auto computeBootstrapChaosSobolIndices( const OT::Sample X, const OT::Sample Y,
     OT::OrthogonalProductPolynomialFactory basis, OT::UnsignedInteger total_degree, OT::Distribution distribution,
     size_t bootstrap_size, OT::Scalar eps = 1e-9)
@@ -107,7 +150,14 @@ auto computeBootstrapChaosSobolIndices( const OT::Sample X, const OT::Sample Y,
     return std::make_tuple(fo_sample, to_sample);
 }
 
-
+/**
+ * @brief From a sample of first and total indices, compute a bilateral confidence interval of level alpha
+ *
+ * @param fo_sample First order Sobol's indices
+ * @param to_sample Total order Sobol's indices
+ * @param alpha Confidence level
+ * @return tuple of lower and upper bounds of the confidence interval for both first and total order Sobol's indices 
+ */
 auto computeSobolIndicesConfidenceInterval(OT::Sample fo_sample, OT::Sample to_sample, OT::Scalar alpha=0.95)
 {
     size_t dim_input = fo_sample.getDimension();
@@ -128,7 +178,19 @@ auto computeSobolIndicesConfidenceInterval(OT::Sample fo_sample, OT::Sample to_s
     return std::make_tuple(fo_interval, to_interval);
 }
 
-
+/**
+ * @brief Compute and draw Sobol' indices from a polynomial chaos based on a given sample size
+ *
+ * @param res Result where indices are stored
+ * @param X Input design
+ * @param Y Output design
+ * @param basis Tensorized polynomial basis
+ * @param total_degree Maximum total degree of the polynomials
+ * @param distribution Distribution of X
+ * @param bootstrap_size Size of the bootstrap sample
+ * @param alpha Confidence level
+ * @return OT::Graph Graph of the Sobol' indices
+ */
 OT::Graph computeAndDrawSobolIndices( Results &res, OT::Sample X, OT::Sample Y, OT::OrthogonalProductPolynomialFactory basis,
     OT::UnsignedInteger total_degree, OT::Distribution distribution, size_t bootstrap_size=500, OT::Scalar alpha = 0.95)
 {

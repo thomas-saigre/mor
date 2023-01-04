@@ -99,6 +99,12 @@ inline Feel::AboutData makeAbout()
     return about;
 }
 
+/**
+ * @brief Generate of composed distribution from a model
+ *
+ * @param Dmu Parameter space
+ * @return OT::ComposedDistribution 
+ */
 OT::ComposedDistribution composedFromModel(parameter_space_ptr_t Dmu )
 {
     using namespace Feel;
@@ -137,6 +143,16 @@ OT::ComposedDistribution composedFromModel(parameter_space_ptr_t Dmu )
     return OT::ComposedDistribution( marginals );
 }
 
+/**
+ * @brief Generate the output sample from a given input sample
+ *
+ * @param input Sample of input parameters
+ * @param plugin loaded plugin
+ * @param time_crb collection of timers
+ * @param online_tol online tolerance
+ * @param rbDim size of the reduced basis
+ * @return OT::Sample 
+ */
 OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::VectorXd &time_crb, double online_tol, int rbDim)
 {
     size_t n = input.getSize();
@@ -280,7 +296,7 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
             OT::UnsignedInteger n_valid = 1000;
             OT::Sample X_test = composed_distribution.getSample(n_valid);
             OT::Sample Y_test = output(X_test, plugin[0], time_crb, online_tol, rbDim);
-            checkMetaModel( n_valid, X_test, Y_test, metaModel );
+            checkMetaModel( X_test, Y_test, metaModel );
             toc("checkMetaModel");
         }
         
