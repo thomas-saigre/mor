@@ -47,6 +47,7 @@
 // #include <omp.h>
 #include "../tqdm/tqdm.h"
 #include "results.hpp"
+#include "FunctionalChaos.hpp"
 
 typedef Feel::ParameterSpaceX::element_type element_t;
 typedef std::shared_ptr<Feel::CRBPluginAPI> plugin_ptr_t;
@@ -143,7 +144,7 @@ OT::Sample output(OT::Sample const& input, plugin_ptr_t const& plugin, Eigen::Ve
     {
         parameter_space_ptr_t Dmu = plugin->parameterSpace();
         std::vector<std::string> names = Dmu->parameterNames();
-        Feel::cout << "Start to compute outputs" << std::endl;
+        Feel::cout << "Start to compute outputs, sampling of size " << n << std::endl;
 #if 0
         auto exec_rb = [&input, &Dmu, &time_crb, rbDim, &plugin, online_tol, &output] (int i) {
             OT::Point X = input[i];
@@ -205,7 +206,7 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
 
     double adapt_tol = doption(_name="adapt.tol");
 
-
+    // Compute Sobol indices using Saltelli method
     if ( !boption("algo.poly") )
     {
         Results res( dim, tableRowHeader, "Saltelli", sampling_size );
@@ -225,6 +226,17 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
         OT::Interval intervals = sensitivity.getFirstOrderIndicesInterval();
         OT::Point totalOrder = sensitivity.getTotalOrderIndices();
         OT::Interval totalIntervals = sensitivity.getTotalOrderIndicesInterval();
+
+        for (size_t i = 0; i < dim; ++i)
+        {
+            OT::Scalar o1 = firstOrder[i];
+            OT::Scalar ot = totalOrder[i];
+            if ( o1 > ot )
+            {
+                Feel::cout << tc::red << "Warning: o1 > ot" << tc::reset << std::endl;
+                throw std::logic_error("Issue in computing sobol indices");
+            }
+        }
         res.setIndices( firstOrder, 1);
         res.setIndices( totalOrder, 2);
         res.setInterval( intervals, 1);
@@ -233,6 +245,54 @@ void runSensitivityAnalysis( std::vector<plugin_ptr_t> plugin, size_t sampling_s
         res.print();
         res.exportValues( "sensitivity-saltelli.json" );
     }
+
+
+    // Compute Sobol indices using Polynomial Chaos and bootstrapin
+    else if ( boption("algo.bootstrap") )
+    {
+        size_t bootstrap_size = ioption(_name="algo.bootstrap-size");
+        Feel::cout << tc::bold << tc::red << "Run polynomial chaos and bootstrap : sampling of size " << sampling_size
+            << " (bootstrap size " << bootstrap_size << ")" << tc::reset << std::endl;
+
+        OT::Collection<OT::Distribution> marginals(dim);
+        for ( size_t d=0; d<dim; ++d )
+            marginals[d] = composed_distribution.getMarginal(d);
+        auto basis = OT::OrthogonalProductPolynomialFactory( marginals );
+        OT::UnsignedInteger total_degree = 3;
+
+        Results res( dim, tableRowHeader, "polynomial-chaos-bootstrap", sampling_size );
+
+        OT::Sample input_sample = composed_distribution.getSample(sampling_size);
+        tic();
+        OT::Sample output_sample = output(input_sample, plugin[0], time_crb, online_tol, rbDim);
+        toc("output sample");
+
+        // Check the meta-model
+        if ( boption(_name="algo.check-meta-model"))
+        {
+            Feel::cout << "Compute Sparse Least Squares Chaos" << std::endl;
+            tic();
+            OT::FunctionalChaosResult polynomialChaosResult =
+                computeSparseLeastSquaresChaos(input_sample, output_sample, basis, total_degree, composed_distribution);
+            toc("computeSparseLeastSquaresChaos");
+            tic();
+            OT::Function metaModel = polynomialChaosResult.getMetaModel();
+            OT::UnsignedInteger n_valid = 1000;
+            OT::Sample X_test = composed_distribution.getSample(n_valid);
+            OT::Sample Y_test = output(X_test, plugin[0], time_crb, online_tol, rbDim);
+            checkMetaModel( n_valid, X_test, Y_test, metaModel );
+            toc("checkMetaModel");
+        }
+        
+        res.print();
+        OT::Graph graph = computeAndDrawSobolIndices( res, input_sample, output_sample, basis, total_degree, composed_distribution, bootstrap_size=bootstrap_size);
+        res.print();
+        res.exportValues( "sensitivity-bootstrap.json" );
+        graph.draw("sobol-indices.png");
+    }
+
+
+    // compute Sobol indices using Polynomial Chaos without bootstraping, this is an adaptative algorothm
     else    // if algo.poly
     {
         Results res( dim, tableRowHeader, "polynomial-chaos", sampling_size );
@@ -314,8 +374,11 @@ int main( int argc, char** argv )
         ( "output_results.save.path", po::value<std::string>(), "output_results.save.path" )
 
         ( "algo.poly", po::value<bool>()->default_value(true), "use polynomial chaos" )
+        ( "algo.bootstrap", po::value<bool>()->default_value(true), "use polynomial chaos and bootstrap" )
         ( "algo.nrun", po::value<int>()->default_value(5), "number to run algorithm" )
         ( "adapt.tol", po::value<double>()->default_value(0.01), "tolerance for adaptative algoritmh" )
+        ( "algo.bootstrap-size", po::value<int>()->default_value(100), "bootstrap size for sensitivity analysis" )
+        ( "algo.check-meta-model", po::value<bool>()->default_value(false), "Check the metamodel" )
 
         ( "query", po::value<std::string>(), "query string for mongodb DB feelpp.crbdb" )
         ( "compare", po::value<std::string>(), "compare results from query in mongodb DB feelpp.crbdb" )

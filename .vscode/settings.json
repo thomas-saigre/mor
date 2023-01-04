@@ -86,7 +86,8 @@
         "numbers": "cpp",
         "semaphore": "cpp",
         "stop_token": "cpp",
-        "execution": "cpp"
+        "execution": "cpp",
+        "span": "cpp"
     },
     "terminal.integrated.persistentSessionReviveProcess": "onExitAndWindowClose"
 }
