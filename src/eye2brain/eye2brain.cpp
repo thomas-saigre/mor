@@ -149,20 +149,20 @@ Eye2Brain::initModel()
     this->addLhs( { a4 , "mu3" } );
     energy->addMatrix(muRef[3], a4.matrixPtr() );
 
-    auto f0 = form1( _test = Xh );
-    f0 = integrate( _range = markedfaces( mesh, "BC_Cornea" ), _expr = id( v ) );
-    f0.vectorPtr()->close();
-    this->addRhs( { f0, "mu4" } );
-
     auto f1 = form1( _test = Xh );
-    f1 = integrate( _range = markedfaces( mesh, {"BC_Sclera", "BC_OpticNerve" } ), _expr = id( v ) );
+    f1 = integrate( _range = markedfaces( mesh, "BC_Cornea" ), _expr = id( v ) );
     f1.vectorPtr()->close();
-    this->addRhs( { f1, "mu5" } );
+    this->addRhs( { f1, "mu4" } );
 
-    /// [energy]
-    //a0.matrixPtr()->symmetricPart( energy );
-    //energy->addMatrix(1.,a0.matrixPtr() );
-    //energy->addMatrix(1./mymu,a0.matrixPtr() );
+    auto f2 = form1( _test = Xh );
+    f2 = integrate( _range = markedfaces( mesh, {"BC_Sclera", "BC_OpticNerve" } ), _expr = id( v ) );
+    f2.vectorPtr()->close();
+    this->addRhs( { f2, "mu5" } );
+
+    // / [energy]
+    // a0.matrixPtr()->symmetricPart( energy );
+    // energy->addMatrix(1.,a0.matrixPtr() );
+    // energy->addMatrix(1./mymu, a0.matrixPtr() );
 
     energy->close();
     this->addEnergyMatrix( energy );
