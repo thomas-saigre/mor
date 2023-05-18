@@ -1,4 +1,7 @@
 = Model Order Reduction in C++
+
+**NOTE :** This work has been included in [Feel++](https://github.com/feelpp/feelpp)
+
 :url-url-def: src/SA/README.md
 
 Install Feel++ : https://docs.feelpp.org/user/latest/install/index.html, with mor and toolboxes dependencies.
